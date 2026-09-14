@@ -1,0 +1,15 @@
+{
+  "name": "society-management",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "bash scripts/production-build.sh",
+    "start": "bash scripts/production-start.sh"
+  },
+  "dependencies": {
+    "@neon/config": "^1.4.2",
+    "@neon/env": "^1.3.2"
+  }
+}

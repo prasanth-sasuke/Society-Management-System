@@ -1,0 +1,24 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+.env.cloud
+.env.production
+.neon
+
+# Database dumps used for cloud copy
+dumps/
+*.dump
+*.sql.bak
+
+# Dependencies and build output (later phases)
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs and OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

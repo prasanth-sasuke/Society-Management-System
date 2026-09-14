@@ -1,0 +1,717 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum BillingFrequency {
+  QUARTERLY
+  MONTHLY
+}
+
+enum FlatType {
+  BHK1
+  BHK2
+  BHK3
+  BHK4
+}
+
+enum OccupancyStatus {
+  OWNER_OCCUPIED
+  TENANT
+  VACANT
+}
+
+enum ResidentType {
+  OWNER
+  TENANT
+}
+
+enum MoveEventType {
+  MOVE_IN
+  MOVE_OUT
+  LEASE_RENEWAL
+}
+
+enum BillStatus {
+  PAID
+  PENDING
+  OVERDUE
+  PART_PAID
+}
+
+enum VoucherStatus {
+  DRAFT
+  EC_APPROVAL
+  APPROVED
+}
+
+enum TicketCategory {
+  PLUMBING
+  ELECTRICAL
+  LIFT
+  HOUSEKEEPING
+  SECURITY
+  CARPENTRY
+  FACILITY
+}
+
+enum TicketPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TicketStatus {
+  ASSIGNED
+  IN_PROGRESS
+  AWAITING_VENDOR
+  RESOLVED
+}
+
+enum PayoutStatus {
+  PROCESSED
+  PENDING
+  HOLD
+}
+
+enum PaymentState {
+  CLEAR
+  DUE
+}
+
+enum AssetCondition {
+  GOOD
+  MONITOR
+  UNDER_REPAIR
+  OUT_OF_SERVICE
+  REFILL_DUE
+}
+
+enum FacilityStatus {
+  AVAILABLE
+  BOOKED
+  PARTLY_BOOKED
+  MAINTENANCE
+}
+
+enum BookingPaymentStatus {
+  PAID
+  PENDING
+  AWAITING_APPROVAL
+  NA
+}
+
+enum ShiftState {
+  COMPLETED
+  ON_DUTY
+  NEXT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ON_DUTY
+  ABSENT
+  ROSTERED
+}
+
+enum IncidentStatus {
+  CLOSED
+  UNDER_REVIEW
+  CLOSED_WARNING
+}
+
+enum FollowUpStatus {
+  VERIFIED
+  IN_PROGRESS
+  ESCALATED
+  SCHEDULED
+}
+
+enum AmcStatus {
+  ACTIVE
+  RENEWAL_DUE
+  DUE_THIS_WEEK
+  SCHEDULED_TODAY
+}
+
+enum UserRole {
+  ADMIN
+  EC
+  MANAGER
+  ACCOUNTANT
+  SECURITY
+  RESIDENT
+  VENDOR
+}
+
+model Society {
+  id                String            @id @default(uuid())
+  name              String
+  penaltyPerDay     Int               @map("penalty_per_day")
+  billingFrequency  BillingFrequency  @map("billing_frequency")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  blocks            Block[]
+  vouchers          Voucher[]
+  bankAccounts      BankAccount[]
+  budgetLines       BudgetLine[]
+  tickets           Ticket[]
+  staffMembers      StaffMember[]
+  rosterDuties      RosterDuty[]
+  followUps         FollowUp[]
+  vendors           Vendor[]
+  quotations        Quotation[]
+  assets            Asset[]
+  amcContracts      AmcContract[]
+  reminders         MaintenanceReminder[]
+  facilities        Facility[]
+  securityShifts    SecurityShift[]
+  guardAttendances  GuardAttendance[]
+  handoverNotes     HandoverNote[]
+  patrolChecks      PatrolCheck[]
+  incidents         Incident[]
+  users             User[]
+
+  @@map("societies")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  societyId    String   @map("society_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         UserRole
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@index([role])
+  @@map("users")
+}
+
+model Block {
+  id            String   @id @default(uuid())
+  societyId     String   @map("society_id")
+  name          String
+  code          String
+  unitsPerFloor Int      @map("units_per_floor")
+  floorCount    Int      @map("floor_count")
+  sortOrder     Int      @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  flats   Flat[]
+
+  @@unique([societyId, code])
+  @@index([societyId])
+  @@map("blocks")
+}
+
+model Flat {
+  id          String           @id @default(uuid())
+  blockId     String           @map("block_id")
+  code        String           @unique
+  floor       Int
+  unitLabel   String           @map("unit_label")
+  type        FlatType
+  carpetSqft  Int?             @map("carpet_sqft")
+  udsSqft     Int?             @map("uds_sqft")
+  parkingSlots Int             @default(0) @map("parking_slots")
+  status      OccupancyStatus
+  duesPending Boolean          @default(false) @map("dues_pending")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  block      Block       @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  residents  Resident[]
+  moveEvents MoveEvent[]
+  bills      Bill[]
+  tickets    Ticket[]
+  bookings   Booking[]
+
+  @@index([blockId])
+  @@index([status])
+  @@map("flats")
+}
+
+model Resident {
+  id                String       @id @default(uuid())
+  flatId            String       @map("flat_id")
+  fullName          String       @map("full_name")
+  type              ResidentType
+  familyMembers     Int          @map("family_members")
+  phone             String
+  emergencyContact  String?      @map("emergency_contact")
+  residentSince     DateTime     @map("resident_since") @db.Date
+  isCurrent         Boolean      @default(true) @map("is_current")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  flat       Flat        @relation(fields: [flatId], references: [id], onDelete: Restrict)
+  moveEvents MoveEvent[]
+  bills      Bill[]
+
+  @@index([flatId])
+  @@index([fullName])
+  @@map("residents")
+}
+
+model MoveEvent {
+  id         String        @id @default(uuid())
+  flatId     String        @map("flat_id")
+  residentId String?       @map("resident_id")
+  type       MoveEventType
+  happenedOn DateTime      @map("happened_on") @db.Date
+  notes      String
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  flat     Flat      @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  resident Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  @@index([flatId])
+  @@index([happenedOn])
+  @@map("move_events")
+}
+
+model Bill {
+  id                String     @id @default(uuid())
+  flatId            String     @map("flat_id")
+  residentId        String?    @map("resident_id")
+  periodLabel       String     @map("period_label")
+  billedOn          DateTime   @map("billed_on") @db.Date
+  dueOn             DateTime   @map("due_on") @db.Date
+  maintenanceAmount Decimal    @map("maintenance_amount") @db.Decimal(12, 2)
+  specialAmount     Decimal    @default(0) @map("special_amount") @db.Decimal(12, 2)
+  previousDue       Decimal    @default(0) @map("previous_due") @db.Decimal(12, 2)
+  penaltyAmount     Decimal    @default(0) @map("penalty_amount") @db.Decimal(12, 2)
+  paidAmount        Decimal    @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  totalAmount       Decimal    @map("total_amount") @db.Decimal(12, 2)
+  status            BillStatus
+  overdueDays       Int        @default(0) @map("overdue_days")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  flat     Flat      @relation(fields: [flatId], references: [id], onDelete: Restrict)
+  resident Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  @@index([flatId])
+  @@index([status])
+  @@index([periodLabel])
+  @@map("bills")
+}
+
+model Voucher {
+  id          String         @id @default(uuid())
+  societyId   String         @map("society_id")
+  number      String         @unique
+  accountHead String         @map("account_head")
+  partyName   String         @map("party_name")
+  amount      Decimal        @db.Decimal(12, 2)
+  status      VoucherStatus
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("vouchers")
+}
+
+model BankAccount {
+  id        String   @id @default(uuid())
+  societyId String   @map("society_id")
+  name      String
+  meta      String
+  balance   Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("bank_accounts")
+}
+
+model BudgetLine {
+  id           String   @id @default(uuid())
+  societyId    String   @map("society_id")
+  head         String
+  spentAmount  Decimal  @map("spent_amount") @db.Decimal(12, 2)
+  budgetAmount Decimal  @map("budget_amount") @db.Decimal(12, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("budget_lines")
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  societyId   String         @map("society_id")
+  ticketNo    String         @unique @map("ticket_no")
+  flatId      String?        @map("flat_id")
+  location    String
+  category    TicketCategory
+  description String
+  priority    TicketPriority
+  assignee    String
+  photosNote  String?        @map("photos_note")
+  status      TicketStatus
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  society  Society          @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  flat     Flat?            @relation(fields: [flatId], references: [id], onDelete: SetNull)
+  events   TicketEvent[]
+  feedback TicketFeedback[]
+
+  @@index([societyId])
+  @@index([flatId])
+  @@index([status, priority])
+  @@map("tickets")
+}
+
+model TicketEvent {
+  id         String   @id @default(uuid())
+  ticketId   String   @map("ticket_id")
+  occurredAt DateTime @map("occurred_at")
+  note       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_events")
+}
+
+model TicketFeedback {
+  id             String   @id @default(uuid())
+  ticketId       String?  @map("ticket_id")
+  residentLabel  String   @map("resident_label")
+  stars          Int
+  note           String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("ticket_feedback")
+}
+
+model StaffMember {
+  id           String       @id @default(uuid())
+  societyId    String       @map("society_id")
+  name         String
+  role         String
+  area         String
+  presentDays  Int          @map("present_days")
+  workingDays  Int          @map("working_days")
+  salary       Decimal      @db.Decimal(12, 2)
+  payoutStatus PayoutStatus @map("payout_status")
+  payoutNote   String?      @map("payout_note")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("staff_members")
+}
+
+model RosterDuty {
+  id        String   @id @default(uuid())
+  societyId String   @map("society_id")
+  name      String
+  weekStart DateTime @map("week_start") @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  society      Society            @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  assignments  RosterAssignment[]
+
+  @@index([societyId, weekStart])
+  @@map("roster_duties")
+}
+
+model RosterAssignment {
+  id        String     @id @default(uuid())
+  dutyId    String     @map("duty_id")
+  dayIndex  Int        @map("day_index")
+  dayLabel  String     @map("day_label")
+  personName String    @map("person_name")
+  isOff     Boolean    @default(false) @map("is_off")
+
+  duty RosterDuty @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+
+  @@unique([dutyId, dayIndex])
+  @@index([dutyId])
+  @@map("roster_assignments")
+}
+
+model FollowUp {
+  id        String         @id @default(uuid())
+  societyId String         @map("society_id")
+  task      String
+  ownerName String         @map("owner_name")
+  dueOn     DateTime       @map("due_on") @db.Date
+  verifier  String
+  status    FollowUpStatus
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@index([status])
+  @@map("follow_ups")
+}
+
+model Vendor {
+  id            String       @id @default(uuid())
+  societyId     String       @map("society_id")
+  name          String
+  service       String
+  phone         String
+  contractValue String       @map("contract_value")
+  renewalOn     DateTime?    @map("renewal_on") @db.Date
+  renewalLabel  String?      @map("renewal_label")
+  paymentState  PaymentState @map("payment_state")
+  paymentNote   String       @map("payment_note")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  society   Society         @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  invoices  VendorInvoice[]
+  amcContracts AmcContract[]
+
+  @@index([societyId])
+  @@map("vendors")
+}
+
+model Quotation {
+  id          String   @id @default(uuid())
+  societyId   String   @map("society_id")
+  work        String
+  vendorsNote String   @map("vendors_note")
+  rangeNote   String   @map("range_note")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("quotations")
+}
+
+model VendorInvoice {
+  id          String   @id @default(uuid())
+  vendorId    String?  @map("vendor_id")
+  invoiceNo   String   @unique @map("invoice_no")
+  description String
+  amount      Decimal  @db.Decimal(12, 2)
+  dueNote     String   @map("due_note")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId])
+  @@map("vendor_invoices")
+}
+
+model Asset {
+  id            String         @id @default(uuid())
+  societyId     String         @map("society_id")
+  tag           String         @unique
+  name          String
+  category      String
+  location      String
+  installedYear Int?           @map("installed_year")
+  amcNote       String         @map("amc_note")
+  condition     AssetCondition
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  society    Society          @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  breakdowns BreakdownEvent[]
+
+  @@index([societyId])
+  @@index([category])
+  @@map("assets")
+}
+
+model AmcContract {
+  id        String    @id @default(uuid())
+  societyId String    @map("society_id")
+  vendorId  String?   @map("vendor_id")
+  equipment String
+  frequency String
+  nextOn    DateTime  @map("next_on") @db.Date
+  status    AmcStatus
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  vendor  Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([societyId])
+  @@index([vendorId])
+  @@map("amc_contracts")
+}
+
+model MaintenanceReminder {
+  id        String   @id @default(uuid())
+  societyId String   @map("society_id")
+  what      String
+  whenLabel String   @map("when_label")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("maintenance_reminders")
+}
+
+model BreakdownEvent {
+  id        String   @id @default(uuid())
+  assetId   String?  @map("asset_id")
+  what      String
+  happenedOn DateTime @map("happened_on") @db.Date
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  asset Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([assetId])
+  @@map("breakdown_events")
+}
+
+model Facility {
+  id           String         @id @default(uuid())
+  societyId    String         @map("society_id")
+  name         String
+  capacityNote String         @map("capacity_note")
+  chargeNote   String         @map("charge_note")
+  nextNote     String         @map("next_note")
+  status       FacilityStatus
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  society  Society   @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([societyId, name])
+  @@index([societyId])
+  @@map("facilities")
+}
+
+model Booking {
+  id            String               @id @default(uuid())
+  facilityId    String               @map("facility_id")
+  flatId        String?              @map("flat_id")
+  bookingDate   DateTime             @map("booking_date") @db.Date
+  dateLabel     String               @map("date_label")
+  slot          String
+  charge        String
+  deposit       String
+  paymentStatus BookingPaymentStatus @map("payment_status")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  flat     Flat?    @relation(fields: [flatId], references: [id], onDelete: SetNull)
+
+  @@index([facilityId])
+  @@index([flatId])
+  @@index([bookingDate])
+  @@map("bookings")
+}
+
+model SecurityShift {
+  id        String     @id @default(uuid())
+  societyId String     @map("society_id")
+  name      String
+  hours     String
+  staffNote String     @map("staff_note")
+  state     ShiftState
+  sortOrder Int        @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("security_shifts")
+}
+
+model GuardAttendance {
+  id           String           @id @default(uuid())
+  societyId    String           @map("society_id")
+  name         String
+  post         String
+  shift        String
+  times        String
+  status       AttendanceStatus
+  statusNote   String?          @map("status_note")
+  attendedOn   DateTime         @map("attended_on") @db.Date
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId, attendedOn])
+  @@map("guard_attendances")
+}
+
+model HandoverNote {
+  id        String   @id @default(uuid())
+  societyId String   @map("society_id")
+  whenLabel String   @map("when_label")
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("handover_notes")
+}
+
+model PatrolCheck {
+  id        String   @id @default(uuid())
+  societyId String   @map("society_id")
+  point     String
+  mark      String
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@map("patrol_checks")
+}
+
+model Incident {
+  id          String         @id @default(uuid())
+  societyId   String         @map("society_id")
+  description String
+  happenedAt  DateTime       @map("happened_at")
+  status      IncidentStatus
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+
+  @@index([societyId])
+  @@index([status])
+  @@map("incidents")
+}

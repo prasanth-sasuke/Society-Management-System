@@ -1,0 +1,27 @@
+# Render Blueprint. Secrets are prompted in the dashboard (sync: false) and never committed.
+# Neon already holds the database; this file only describes the Node + React web service.
+previews:
+  generation: off
+
+services:
+  - type: web
+    name: society-operations-suite
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: bash scripts/production-build.sh
+    startCommand: bash scripts/production-start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false

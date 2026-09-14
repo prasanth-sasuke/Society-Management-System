@@ -1,0 +1,32 @@
+{
+  "name": "society-management-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "start:prod": "node src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node --env-file=.env prisma/seed.js",
+    "prisma:verify": "node --env-file=.env scripts/verify-crud.js",
+    "verify:api": "node --env-file=.env scripts/verify-api.js",
+    "migrate:cloud": "node scripts/migrate-to-cloud.js",
+    "verify:cloud": "node scripts/verify-cloud.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.3",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "zod": "^4.6.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "prisma": "^6.16.3"
+  }
+}
