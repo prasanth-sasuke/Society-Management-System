@@ -22,8 +22,14 @@ function authRead(moduleName, handler) {
 }
 
 api.get("/health", asyncHandler(async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
-  res.json({ ok: true, service: "society-management-api", db: "up" });
+  let db = "down";
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = "up";
+  } catch {
+    db = "down";
+  }
+  res.json({ ok: true, service: "society-management-api", db });
 }));
 
 api.post("/auth/login", validate(loginSchema), asyncHandler(async (req, res) => {
