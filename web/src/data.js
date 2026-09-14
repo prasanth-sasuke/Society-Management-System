@@ -96,6 +96,17 @@ export const MODALS = {
       { key: "pay", label: "Payment", options: ["Paid", "Pending", "Awaiting approval"] },
     ],
   },
+  user: {
+    title: "Add login",
+    kicker: "Module 3 · Users & Access",
+    submit: "Create login",
+    fields: [
+      { key: "name", label: "Full name", placeholder: "Meera Rao", required: true },
+      { key: "email", label: "Email", placeholder: "manager@yopmail.com", required: true },
+      { key: "password", label: "Password", placeholder: "At least 8 characters", required: true },
+      { key: "role", label: "Role", options: ["Admin", "EC member", "Manager", "Accountant", "Security", "Resident", "Vendor"] },
+    ],
+  },
 };
 
 export const DEFAULT_SETTINGS = {

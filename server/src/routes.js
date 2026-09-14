@@ -11,6 +11,7 @@ import {
   ticketCreateSchema,
   validate,
   vendorCreateSchema,
+  userCreateSchema,
 } from "./validate.js";
 import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
@@ -46,6 +47,10 @@ api.post("/auth/logout", requireAuth, asyncHandler(async (_req, res) => {
 
 api.get("/access", ...authRead("users", async (_req, res) => {
   res.json(await auth.listAccess());
+}));
+
+api.post("/users", requireAuth, requirePermission("users", "write"), validate(userCreateSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await auth.createUser(req.body));
 }));
 
 api.get("/society", requireAuth, asyncHandler(async (_req, res) => {

@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../prisma.js";
 import { AppError } from "../http.js";
 import { signSession } from "../auth/jwt.js";
-import { ROLE_LABELS, ROLE_SCOPES, permissionsFor, permissionMatrixView } from "../auth/permissions.js";
+import { ROLE_LABELS, ROLE_SCOPES, CREATABLE_ROLES, permissionsFor, permissionMatrixView } from "../auth/permissions.js";
 
 function publicUser(user) {
   return {
@@ -45,6 +45,41 @@ export function currentSession(reqUser) {
     },
     permissions: reqUser.permissions,
   };
+}
+
+export async function createUser(body) {
+  const society = await prisma.society.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!society) throw new AppError(404, "No society found.");
+  const requested = String(body.role || "").trim();
+  const role = CREATABLE_ROLES.find((item) => (
+    item === requested.toUpperCase() || ROLE_LABELS[item].toLowerCase() === requested.toLowerCase()
+  ));
+  if (!role) {
+    throw new AppError(400, "Choose a valid role. Superadmin cannot be created from the app.");
+  }
+  const email = String(body.email || "").trim().toLowerCase();
+  const password = String(body.password || "");
+  if (password.length < 8) {
+    throw new AppError(400, "Password must be at least 8 characters.");
+  }
+  const passwordHash = await bcrypt.hash(password, 12);
+  try {
+    const created = await prisma.user.create({
+      data: {
+        societyId: society.id,
+        email,
+        passwordHash,
+        fullName: String(body.name || "").trim(),
+        role,
+      },
+    });
+    return publicUser(created);
+  } catch (error) {
+    if (error?.code === "P2002") {
+      throw new AppError(409, "A login with that email already exists.");
+    }
+    throw error;
+  }
 }
 
 export async function listAccess() {

@@ -236,10 +236,10 @@ export function ResidentsScreen({ view, onAdd }) {
   );
 }
 
-export function AccessScreen({ view }) {
+export function AccessScreen({ view, onAdd }) {
   return (
     <>
-      <PageHead tag="Module 3 · User & Access" title="Users & role permissions" lead="Seven roles across the society. A role decides which modules a login can open and whether it can only read or also edit." />
+      <PageHead tag="Module 3 · User & Access" title="Users & role permissions" lead="The superadmin creates every other login. A role decides which modules a user can open and whether they can only read or also edit." action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add login</PrimaryButton> : null} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22, marginTop: 30 }}>
         {view.roleCards.map((r) => (
           <Card key={r.role} padding="22px 24px">

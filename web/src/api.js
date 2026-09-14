@@ -35,6 +35,7 @@ const CREATE_PATHS = {
   vendor: "/api/vendors",
   asset: "/api/assets",
   booking: "/api/bookings",
+  user: "/api/users",
 };
 
 export class ApiError extends Error {
@@ -136,5 +137,6 @@ export function toastForCreate(kind, created) {
   if (kind === "vendor") return `${created.name} empanelled.`;
   if (kind === "asset") return `Asset ${created.tag} tagged.`;
   if (kind === "booking") return `${created.facility} booked for ${created.flat} on ${created.date}.`;
+  if (kind === "user") return `Login created for ${created.email}.`;
   return "Saved.";
 }

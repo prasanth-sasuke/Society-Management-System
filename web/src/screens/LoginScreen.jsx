@@ -107,16 +107,6 @@ export default function LoginScreen({ societyName, error, submitting, onSubmit }
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>
-        <div style={{ marginTop: 18, font: "400 13px/1.55 Lato,sans-serif", color: "#8a8a80" }}>
-          {import.meta.env.VITE_DEMO_PASSWORD ? (
-            <>
-              Local demo password for all seeded users:{" "}
-              <strong style={{ color: "#5f5f57" }}>{import.meta.env.VITE_DEMO_PASSWORD}</strong>
-              <br />
-            </>
-          ) : null}
-          Demo accounts: admin@, ec@, manager@, accounts@, security@, resident@, vendor@greenfield.local
-        </div>
       </form>
     </div>
   );

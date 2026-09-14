@@ -51,6 +51,13 @@ export const assetCreateSchema = z.object({
   condition: z.string().trim().min(1),
 });
 
+export const userCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().min(1).transform((value) => value.toLowerCase()),
+  password: z.string().min(8),
+  role: z.string().trim().min(1),
+});
+
 export const bookingCreateSchema = z.object({
   facility: z.string().trim().min(1),
   flat: z.string().trim().min(1),

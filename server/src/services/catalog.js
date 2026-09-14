@@ -90,10 +90,22 @@ export async function createFlat(body) {
   const parsed = parseFlatCode(body.flat);
   if (!parsed) throw new AppError(400, "Flat no. must look like A-1A");
   const society = await getSociety();
-  const block = await prisma.block.findUnique({
+  let block = await prisma.block.findUnique({
     where: { societyId_code: { societyId: society.id, code: parsed.blockCode } },
   });
-  if (!block) throw new AppError(400, `Unknown block: ${parsed.blockCode}`);
+  if (!block) {
+    const existing = await prisma.block.count({ where: { societyId: society.id } });
+    block = await prisma.block.create({
+      data: {
+        societyId: society.id,
+        name: `Block ${parsed.blockCode}`,
+        code: parsed.blockCode,
+        unitsPerFloor: 1,
+        floorCount: Math.max(parsed.floor, 1),
+        sortOrder: existing,
+      },
+    });
+  }
   const created = await prisma.flat.create({
     data: {
       blockId: block.id,

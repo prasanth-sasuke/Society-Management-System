@@ -1,4 +1,5 @@
 export const ROLE_LABELS = {
+  SUPERADMIN: "Superadmin",
   ADMIN: "Admin",
   EC: "EC member",
   MANAGER: "Manager",
@@ -9,7 +10,8 @@ export const ROLE_LABELS = {
 };
 
 export const ROLE_SCOPES = {
-  ADMIN: "Everything, including masters and audit trail",
+  SUPERADMIN: "Bootstrap account: everything, including creating logins",
+  ADMIN: "Everything in the society except creating logins",
   EC: "Read all, approve vouchers above ₹25,000",
   MANAGER: "Day-to-day operations, billing, staff, vendors",
   ACCOUNTANT: "Bills, accounts, vendor invoices, and reports",
@@ -17,6 +19,8 @@ export const ROLE_SCOPES = {
   RESIDENT: "Own bills, helpdesk, and facility booking",
   VENDOR: "Assigned tickets and own contract records",
 };
+
+export const CREATABLE_ROLES = ["ADMIN", "EC", "MANAGER", "ACCOUNTANT", "SECURITY", "RESIDENT", "VENDOR"];
 
 export const MODULES = [
   "property",
@@ -36,9 +40,13 @@ const FULL = "full";
 const READ = "read";
 
 const MATRIX = {
-  ADMIN: {
+  SUPERADMIN: {
     property: FULL, residents: FULL, billing: FULL, finance: FULL, helpdesk: FULL,
     security: FULL, staff: FULL, vendors: FULL, facility: FULL, reports: FULL, users: FULL,
+  },
+  ADMIN: {
+    property: FULL, residents: FULL, billing: FULL, finance: FULL, helpdesk: FULL,
+    security: FULL, staff: FULL, vendors: FULL, facility: FULL, reports: FULL, users: READ,
   },
   EC: {
     property: READ, residents: READ, billing: READ, finance: READ, helpdesk: READ,
@@ -80,7 +88,7 @@ export function canWrite(permissions, moduleName) {
 }
 
 export function permissionMatrixView() {
-  const roles = ["ADMIN", "EC", "MANAGER", "ACCOUNTANT", "SECURITY", "RESIDENT", "VENDOR"];
+  const roles = ["SUPERADMIN", "ADMIN", "EC", "MANAGER", "ACCOUNTANT", "SECURITY", "RESIDENT", "VENDOR"];
   const rows = [
     ["property", "Property master"],
     ["residents", "Residents"],

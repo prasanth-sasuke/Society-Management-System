@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node --env-file=.env prisma/seed.js",
+    "prisma:seed:cloud": "node scripts/seed-cloud.js",
     "prisma:verify": "node --env-file=.env scripts/verify-crud.js",
     "verify:api": "node --env-file=.env scripts/verify-api.js",
     "migrate:cloud": "node scripts/migrate-to-cloud.js",

@@ -51,6 +51,7 @@ export const CREATE_MODULE = {
   vendor: "vendors",
   asset: "vendors",
   booking: "facility",
+  user: "users",
 };
 
 export function getToken() {

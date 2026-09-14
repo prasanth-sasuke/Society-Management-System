@@ -141,6 +141,7 @@ enum AmcStatus {
 }
 
 enum UserRole {
+  SUPERADMIN
   ADMIN
   EC
   MANAGER

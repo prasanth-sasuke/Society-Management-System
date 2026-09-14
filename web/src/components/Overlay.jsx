@@ -72,7 +72,7 @@ export default function ModalForm({ cfg, form, error, submitting, onChange, onCl
                 </select>
               ) : (
                 <input
-                  type="text"
+                  type={f.key === "password" ? "password" : "text"}
                   required={Boolean(f.required)}
                   value={form[f.key] ?? ""}
                   onChange={(e) => onChange(f.key, e.target.value)}
