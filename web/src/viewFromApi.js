@@ -159,6 +159,22 @@ function priorityColor(priority) {
   return "#8a8a80";
 }
 
+function rupees(value) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+function chartBars(trend) {
+  const rows = Array.isArray(trend) && trend.length
+    ? trend
+    : MONTHS.slice(-6).map((month) => ({ month, income: 0, expense: 0 }));
+  const max = Math.max(0, ...rows.map((row) => Math.max(Number(row.income) || 0, Number(row.expense) || 0)));
+  return rows.map((row) => ({
+    month: row.month,
+    income: max ? Math.max(Number(row.income) ? 8 : 4, Math.round((Number(row.income) / max) * 180)) : 4,
+    expense: max ? Math.max(Number(row.expense) ? 8 : 4, Math.round((Number(row.expense) / max) * 180)) : 4,
+  }));
+}
+
 export function buildViewFromApi(catalog, permissions = {}) {
   const society = catalog.society || {};
   const dashboard = catalog.dashboard || {};
@@ -218,15 +234,42 @@ export function buildViewFromApi(catalog, permissions = {}) {
   });
 
   const access = catalog.access || {};
+  const money = dashboard.money || {};
+  const blocks = catalog.blocks || [];
+  const blockNames = blocks.map((block) => block.code).filter(Boolean).join(", ");
+  const billedLabel = /quarter/i.test(settings.billingFrequency || "") ? "Billed this quarter" : "Billed this month";
+  const presentDays = staffRows.reduce((sum, row) => sum + Number(row.presentDays || 0), 0);
+  const workingDays = staffRows.reduce((sum, row) => sum + Number(row.workingDays || 0), 0);
+  const salaryTotal = money.salary ?? staffRows.reduce((sum, row) => sum + Number(row.salaryAmount || 0), 0);
+  const pendingPayouts = staffRows.filter((row) => !/^processed$/i.test(row.payout || "")).length;
   const homeKpis = [];
   if (showMoney) {
-    homeKpis.push(...base.homeKpis.filter((kpi) => kpi.label !== "Flats occupied"));
+    homeKpis.push(
+      {
+        label: "Money collected",
+        value: rupees(money.collected),
+        note: money.paidBills ? `${money.paidBills} bills paid` : "No collections yet",
+        tone: "#1e6b52",
+      },
+      {
+        label: "Money still due",
+        value: rupees(money.due),
+        note: money.unpaidFlats ? `${money.unpaidFlats} flats haven't paid yet` : "No dues yet",
+        tone: "#b0491a",
+      },
+      {
+        label: "Money spent",
+        value: rupees(money.spent),
+        note: money.vouchers ? `${money.vouchers} approved vouchers` : "No expenses yet",
+        tone: "#8a8a80",
+      },
+    );
   }
   if (showOccupancy) {
     homeKpis.push({
       label: "Flats occupied",
       value: occupiedNote,
-      note: `${occupancy.vacant} flats are empty`,
+      note: occupancy.total ? `${occupancy.vacant} flats are empty` : "No flats in the register yet",
       tone: "#8a8a80",
     });
   }
@@ -242,9 +285,24 @@ export function buildViewFromApi(catalog, permissions = {}) {
     showStaff,
     showEvents,
     homeLead: showOccupancy && occupancy.total
-      ? `${(catalog.blocks || []).length || 5} blocks (A, B, C, D, E), ${occupancy.total} flats in total`
+      ? `${blocks.length} block${blocks.length === 1 ? "" : "s"}${blockNames ? ` (${blockNames})` : ""}, ${occupancy.total} flats in total`
       : "signed in with your assigned modules",
     homeKpis,
+    chart: chartBars(dashboard.trend),
+    billKpis: [
+      { label: billedLabel, value: rupees(money.billed), note: bills.length ? `${bills.length} bills in register` : "No bills generated yet" },
+      { label: "Collected so far", value: rupees(money.collected), note: money.paidBills ? `${money.paidBills} paid` : "No collections yet" },
+      { label: "Still pending", value: rupees(money.due), note: money.unpaidBills ? `${money.unpaidBills} unpaid` : "No dues yet" },
+    ],
+    finKpis: [
+      { label: "Income YTD", value: rupees(money.collected), note: money.paidBills ? "From maintenance collections" : "No income recorded yet", tone: "#8a8a80" },
+      { label: "Expenses YTD", value: rupees(money.spent), note: money.vouchers ? `${money.vouchers} approved vouchers` : "No expenses recorded yet", tone: "#8a8a80" },
+      { label: "Corpus fund", value: rupees(0), note: "Not set up yet", tone: "#8a8a80" },
+      { label: "Cash + bank", value: rupees(money.cash), note: money.banks ? `Across ${money.banks} account${money.banks === 1 ? "" : "s"}` : "No bank accounts yet", tone: "#8a8a80" },
+    ],
+    ageing: (dashboard.ageing || []).map((row) => ({ ...row, amount: rupees(row.amount) })),
+    expenseSplit: (dashboard.expenseSplit || []).map((row) => ({ ...row, amount: rupees(row.amount) })),
+    statements: [],
     attention,
     homeComplaints: openTickets.slice(0, 4).map((row) => ({
       text: `${row.id} — ${row.text}`,
@@ -264,6 +322,18 @@ export function buildViewFromApi(catalog, permissions = {}) {
     residents,
     moveLog: (catalog.moveEvents || []).map((row) => ({ text: row.text, date: formatDay(row.date) })),
     bills,
+    generateToast: "Bill generation is not connected to the database yet.",
+    receiptPreview: (() => {
+      const paid = bills.find((row) => row.statusCode === "PAID" || String(row.status).startsWith("Paid"));
+      if (!paid) return null;
+      return {
+        title: `Receipt preview — ${paid.flat}`,
+        flat: paid.flat,
+        resident: paid.resident,
+        total: paid.total,
+        line: `Maintenance bill ................ ${paid.total}`,
+      };
+    })(),
     vouchers: (finance.vouchers || []).map((row) => ({ ...row, ...tone(voucherTone(row.state)) })),
     banks: finance.banks || [],
     budget: (finance.budget || []).map((row) => ({
@@ -273,8 +343,8 @@ export function buildViewFromApi(catalog, permissions = {}) {
     helpKpis: [
       { label: "Open tickets", value: String(openTickets.length), note: `${highOpen.length} high priority`, tone: "#b0491a" },
       { label: "Closed tickets", value: String(tickets.filter((row) => row.status === "Resolved").length), note: "Resolved in register", tone: "#1e6b52" },
-      base.helpKpis[2],
-      base.helpKpis[3],
+      { label: "Avg resolution", value: "—", note: "Not tracked yet", tone: "#8a8a80" },
+      { label: "Resident rating", value: "—", note: "No feedback yet", tone: "#8a8a80" },
     ],
     tickets,
     trailTicket: trailSource?.id || "—",
@@ -290,11 +360,12 @@ export function buildViewFromApi(catalog, permissions = {}) {
       const status = titleCase(row.status);
       return { ...row, when: formatStamp(row.when), status, ...tone(incidentTone(status)) };
     }),
-    staffKpis: base.staffKpis.map((kpi) => (
-      kpi.label === "On payroll"
-        ? { ...kpi, value: String(staffRows.length), note: `${Object.keys(roleCounts).length} categories` }
-        : kpi
-    )),
+    staffKpis: [
+      { label: "On payroll", value: String(staffRows.length), note: `${Object.keys(roleCounts).length} categories`, tone: "#8a8a80" },
+      { label: "Attendance on file", value: staffRows.length ? `${presentDays} / ${workingDays}` : "0 / 0", note: "Present vs working days", tone: "#8a8a80" },
+      { label: "Monthly salary", value: rupees(salaryTotal), note: staffRows.length ? `${staffRows.length} staff` : "No staff yet", tone: "#8a8a80" },
+      { label: "Pending payouts", value: String(pendingPayouts), note: "Hold or pending", tone: pendingPayouts ? "#8a6414" : "#8a8a80" },
+    ],
     staffRows,
     days: roster.days?.length ? roster.days : [],
     rosterRows: (roster.rows || []).map((row) => ({
@@ -311,7 +382,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
     invoices: (catalog.invoices || []).map((row) => ({ ...row, tone: dueTone(row.due) })),
     assetKpis: [
       { label: "Tagged assets", value: String(assets.length), note: "From asset register", tone: "#8a8a80" },
-      base.assetKpis[1],
+      { label: "Book value", value: rupees(0), note: "Not tracked yet", tone: "#8a8a80" },
       { label: "Under AMC", value: String(assets.filter((row) => /amc/i.test(row.amc || "")).length), note: "Warranty / AMC notes", tone: "#1e6b52" },
       { label: "Needs attention", value: String(assets.filter((row) => row.condition !== "Good").length), note: "Not in good condition", tone: "#b0491a" },
     ],
@@ -321,25 +392,47 @@ export function buildViewFromApi(catalog, permissions = {}) {
     breakdowns: (catalog.breakdowns || []).map((row) => ({ ...row, when: formatDay(row.when) })),
     facilities: (catalog.facilities || []).map((row) => ({ ...row, ...tone(facilityTone(row.state)) })),
     bookings,
-    reportKpis: base.reportKpis.map((kpi) => (
-      kpi.label === "Occupancy"
-        ? { ...kpi, value: `${occupancyPct}%`, note: `${occupancy.occupied} of ${occupancy.total} flats` }
-        : kpi
-    )),
-    blockSummary: (catalog.blocks || []).map((block) => {
+    reportKpis: [
+      {
+        label: "Collection %",
+        value: `${Number(money.collectionPct || 0).toFixed(1)}%`,
+        note: money.billed ? `${rupees(money.collected)} of ${rupees(money.billed)}` : "No bills yet",
+        tone: Number(money.collectionPct || 0) >= 92 ? "#1e6b52" : Number(money.billed) ? "#8a6414" : "#8a8a80",
+      },
+      {
+        label: "Outstanding dues",
+        value: rupees(money.due),
+        note: money.unpaidFlats ? `${money.unpaidFlats} flats` : "No dues yet",
+        tone: money.due ? "#b0491a" : "#8a8a80",
+      },
+      {
+        label: "Occupancy",
+        value: `${occupancyPct}%`,
+        note: occupancy.total ? `${occupancy.occupied} of ${occupancy.total} flats` : "No flats yet",
+        tone: "#1e6b52",
+      },
+      {
+        label: "Vendor payments due",
+        value: rupees(money.vendorDue),
+        note: money.invoices ? `${money.invoices} invoices` : "No vendor invoices yet",
+        tone: money.vendorDue ? "#8a6414" : "#8a8a80",
+      },
+    ],
+    blockSummary: blocks.map((block) => {
       const units = (block.floors || []).flatMap((floor) => floor.flats || []);
-      const occupied = units.filter((unit) => unit.status && unit.status !== "Vacant").length;
+      const occupiedCount = units.filter((unit) => unit.status && unit.status !== "Vacant").length;
       const complaints = openTickets.filter((row) => String(row.flat).startsWith(`${block.code}-`) || String(row.flat).startsWith(block.code)).length;
-      const previous = base.blockSummary.find((row) => row.block === block.name) || {};
-      const pct = block.count ? ((occupied / block.count) * 100).toFixed(1) : previous.pct;
+      const totals = dashboard.blockMoney?.[block.code] || { billed: 0, collected: 0 };
+      const pct = totals.billed ? ((totals.collected / totals.billed) * 100).toFixed(1) : block.count ? ((occupiedCount / block.count) * 100).toFixed(1) : "0.0";
       return {
-        ...previous,
         block: block.name,
         flats: block.count,
-        occupied,
+        occupied: occupiedCount,
+        billed: rupees(totals.billed),
+        collected: rupees(totals.collected),
         complaints,
         pct: `${pct}%`,
-        tone: Number(pct) >= 90 ? "#1e6b52" : Number(pct) >= 85 ? "#8a6414" : "#b0491a",
+        tone: Number(pct) >= 90 ? "#1e6b52" : Number(pct) >= 85 ? "#8a6414" : Number(totals.billed) || block.count ? "#b0491a" : "#8a8a80",
       };
     }),
     roleCards: access.roleCards || base.roleCards,

@@ -121,5 +121,12 @@ export function filterDashboard(dashboard, permissions) {
   if (permissions.billing || permissions.reports) next.overdueBills = dashboard.overdueBills;
   if (permissions.staff || permissions.reports) next.staffOnPayroll = dashboard.staffOnPayroll;
   if (permissions.vendors || permissions.reports) next.vendors = dashboard.vendors;
+  if (permissions.billing || permissions.finance || permissions.reports) {
+    next.money = dashboard.money;
+    next.trend = dashboard.trend;
+    next.ageing = dashboard.ageing;
+    next.expenseSplit = dashboard.expenseSplit;
+    next.blockMoney = dashboard.blockMoney;
+  }
   return next;
 }

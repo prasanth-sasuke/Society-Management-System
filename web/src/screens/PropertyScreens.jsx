@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bar, Card, EmptyTableNote, KpiCard, PageHead, PageLead, PageTitle, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
+import { Bar, Card, EmptyNote, EmptyTableNote, KpiCard, PageHead, PageLead, PageTitle, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
 
 export function HomeScreen({ view }) {
   const lower = [view.showComplaints, view.showStaff, view.showEvents].filter(Boolean).length;
@@ -54,12 +54,12 @@ export function HomeScreen({ view }) {
           {view.showAttention ? (
             <Card>
               <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 8px" }}>Attention needed</h2>
-              {view.attention.map((a) => (
+              {view.attention.length ? view.attention.map((a) => (
                 <div key={a.text} style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline", padding: "15px 0", borderBottom: "1px solid #efece3" }}>
                   <div style={{ font: "400 15px/1.35 Lato,sans-serif" }}>{a.text}</div>
                   <div style={{ font: "700 14px 'Source Serif 4',Georgia,serif", color: a.tone, whiteSpace: "nowrap" }}>{a.amount}</div>
                 </div>
-              ))}
+              )) : <EmptyNote>Nothing outstanding right now.</EmptyNote>}
             </Card>
           ) : null}
         </div>
@@ -69,34 +69,34 @@ export function HomeScreen({ view }) {
           {view.showComplaints ? (
             <Card>
               <h2 style={{ font: "700 19px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Open complaints</h2>
-              {view.homeComplaints.map((c) => (
+              {view.homeComplaints.length ? view.homeComplaints.map((c) => (
                 <div key={c.text} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "12px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
                   <span>{c.text}</span>
                   <span style={{ fontSize: 12, letterSpacing: ".05em", textTransform: "uppercase", color: c.tone, whiteSpace: "nowrap", paddingTop: 2 }}>{c.tag}</span>
                 </div>
-              ))}
+              )) : <EmptyNote>No open complaints.</EmptyNote>}
             </Card>
           ) : null}
           {view.showStaff ? (
             <Card>
               <h2 style={{ font: "700 19px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Staff on duty today</h2>
-              {view.homeStaff.map((s) => (
+              {view.homeStaff.length ? view.homeStaff.map((s) => (
                 <div key={s.text} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "12px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
                   <span>{s.text}</span>
                   <span style={{ color: "#8a8a80", fontSize: 14, whiteSpace: "nowrap" }}>{s.meta}</span>
                 </div>
-              ))}
+              )) : <EmptyNote>No staff on the register yet.</EmptyNote>}
             </Card>
           ) : null}
           {view.showEvents ? (
             <Card>
               <h2 style={{ font: "700 19px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Today at the society</h2>
-              {view.homeEvents.map((e) => (
+              {view.homeEvents.length ? view.homeEvents.map((e) => (
                 <div key={e.text} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "12px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
                   <span>{e.text}</span>
                   <span style={{ color: "#8a8a80", fontSize: 14, whiteSpace: "nowrap" }}>{e.meta}</span>
                 </div>
-              ))}
+              )) : <EmptyNote>No bookings for today.</EmptyNote>}
             </Card>
           ) : null}
         </div>
@@ -348,15 +348,18 @@ export function BillsScreen({ view, onGenerate, onReceipt }) {
       </Card>
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <SectionTitle>Receipt preview — A-1A</SectionTitle>
-          {onReceipt ? <button type="button" onClick={onReceipt} style={{ border: "1px solid #e0dccf", background: "#fff", cursor: "pointer", borderRadius: 8, padding: "10px 18px", font: "700 14px Lato,sans-serif", color: "#2a2a28" }}>Download PDF</button> : null}
+          <SectionTitle>{view.receiptPreview ? view.receiptPreview.title : "Receipt preview"}</SectionTitle>
+          {onReceipt && view.receiptPreview ? <button type="button" onClick={onReceipt} style={{ border: "1px solid #e0dccf", background: "#fff", cursor: "pointer", borderRadius: 8, padding: "10px 18px", font: "700 14px Lato,sans-serif", color: "#2a2a28" }}>Download PDF</button> : null}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 9, font: "400 15px/1.5 Lato,sans-serif", color: "#5f5f57" }}>
-          <div>Receipt No: MR/2026/Q3/0101 · Date: 05-Jul-2026</div>
-          <div>Flat A-1A — Ramesh Kumar</div>
-          <div>{view.receiptLine}</div>
-          <div style={{ fontWeight: 700, color: "#2a2a28" }}>Amount Paid: ₹12,600 — via UPI</div>
-        </div>
+        {view.receiptPreview ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, font: "400 15px/1.5 Lato,sans-serif", color: "#5f5f57" }}>
+            <div>Flat {view.receiptPreview.flat} — {view.receiptPreview.resident}</div>
+            <div>{view.receiptPreview.line}</div>
+            <div style={{ fontWeight: 700, color: "#2a2a28" }}>Amount paid: {view.receiptPreview.total}</div>
+          </div>
+        ) : (
+          <EmptyNote>No paid bills yet — a receipt will appear here after the first collection.</EmptyNote>
+        )}
       </Card>
     </>
   );
@@ -379,7 +382,7 @@ export function AccountsScreen({ view }) {
               <tr><Th>Voucher</Th><Th>Head</Th><Th>Paid to</Th><Th>Amount</Th><Th>Approval</Th></tr>
             </thead>
             <tbody>
-              {view.vouchers.map((v) => (
+              {view.vouchers.length ? view.vouchers.map((v) => (
                 <tr key={v.id || v.no}>
                   <Td mono style={{ fontSize: 14 }}>{v.no}</Td>
                   <Td>{v.head}</Td>
@@ -387,14 +390,14 @@ export function AccountsScreen({ view }) {
                   <Td mono style={{ fontWeight: 500 }}>{v.amount}</Td>
                   <Td><Pill bg={v.bg} fg={v.fg}>{v.state}</Pill></Td>
                 </tr>
-              ))}
+              )) : <EmptyTableNote colSpan={5}>No vouchers recorded yet.</EmptyTableNote>}
             </tbody>
           </table>
         </Card>
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <Card>
             <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Bank & cash</h2>
-            {view.banks.map((b) => (
+            {view.banks.length ? view.banks.map((b) => (
               <div key={b.name} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
                 <div>
                   <div style={{ font: "400 15px Lato,sans-serif" }}>{b.name}</div>
@@ -402,26 +405,26 @@ export function AccountsScreen({ view }) {
                 </div>
                 <div style={{ font: "700 16px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{b.balance}</div>
               </div>
-            ))}
+            )) : <EmptyNote>No bank accounts yet.</EmptyNote>}
           </Card>
           <Card>
             <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Budget vs actual</h2>
-            {view.budget.map((b) => (
+            {view.budget.length ? view.budget.map((b) => (
               <div key={b.head} style={{ padding: "13px 0", borderTop: "1px solid #efece3" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif", marginBottom: 9 }}>
                   <span>{b.head}</span><span style={{ color: "#5f5f57" }}>{b.figures}</span>
                 </div>
                 <Bar pct={b.pct} color={b.tone} />
               </div>
-            ))}
+            )) : <EmptyNote>No budget lines yet.</EmptyNote>}
           </Card>
           <Card>
             <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Statements & audit</h2>
-            {view.statements.map((s) => (
+            {view.statements.length ? view.statements.map((s) => (
               <div key={s.name} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "13px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
                 <span>{s.name}</span><span style={{ color: "#1e6b52", fontSize: 14, whiteSpace: "nowrap" }}>{s.action}</span>
               </div>
-            ))}
+            )) : <EmptyNote>No statements uploaded yet.</EmptyNote>}
           </Card>
         </div>
       </div>

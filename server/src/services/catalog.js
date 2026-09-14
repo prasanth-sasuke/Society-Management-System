@@ -33,22 +33,220 @@ export async function getSocietyPayload() {
   };
 }
 
+function asNumber(value) {
+  return Number(value || 0);
+}
+
+function monthKey(date) {
+  const value = date instanceof Date ? date : new Date(date);
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function lastSixMonths(now = new Date()) {
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [];
+  for (let i = 5; i >= 0; i -= 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push({
+      key: monthKey(date),
+      month: labels[date.getUTCMonth()],
+    });
+  }
+  return months;
+}
+
+function remainingAmount(row) {
+  return Math.max(asNumber(row.totalAmount) - asNumber(row.paidAmount), 0);
+}
+
+function ageingBucket(days) {
+  if (days <= 30) return "0–30 days";
+  if (days <= 60) return "31–60 days";
+  if (days <= 90) return "61–90 days";
+  return "90+ days";
+}
+
 export async function getDashboard() {
   const society = await getSociety();
-  const [flatTotal, occupied, vacant, openTickets, overdueBills] = await Promise.all([
+  const trendMonths = lastSixMonths();
+  const trendStart = new Date(`${trendMonths[0].key}-01T00:00:00.000Z`);
+  const today = new Date();
+
+  const [
+    flatTotal,
+    occupied,
+    vacant,
+    openTickets,
+    overdueBills,
+    billAgg,
+    paidBills,
+    unpaidBills,
+    unpaidFlats,
+    voucherAgg,
+    voucherCount,
+    bankAgg,
+    bankCount,
+    salaryAgg,
+    invoiceAgg,
+    invoiceCount,
+    staffOnPayroll,
+    vendors,
+    trendBills,
+    trendVouchers,
+    unpaidBillRows,
+    allVouchers,
+    billsByBlock,
+  ] = await Promise.all([
     prisma.flat.count(),
     prisma.flat.count({ where: { status: { not: "VACANT" } } }),
     prisma.flat.count({ where: { status: "VACANT" } }),
     prisma.ticket.count({ where: { status: { not: "RESOLVED" } } }),
     prisma.bill.count({ where: { status: "OVERDUE" } }),
+    prisma.bill.aggregate({ _sum: { paidAmount: true, totalAmount: true } }),
+    prisma.bill.count({ where: { status: "PAID" } }),
+    prisma.bill.count({ where: { status: { not: "PAID" } } }),
+    prisma.bill.findMany({
+      where: { status: { not: "PAID" } },
+      select: { flatId: true },
+    }),
+    prisma.voucher.aggregate({
+      where: { societyId: society.id, status: "APPROVED" },
+      _sum: { amount: true },
+    }),
+    prisma.voucher.count({ where: { societyId: society.id, status: "APPROVED" } }),
+    prisma.bankAccount.aggregate({
+      where: { societyId: society.id },
+      _sum: { balance: true },
+    }),
+    prisma.bankAccount.count({ where: { societyId: society.id } }),
+    prisma.staffMember.aggregate({
+      where: { societyId: society.id },
+      _sum: { salary: true },
+    }),
+    prisma.vendorInvoice.aggregate({ _sum: { amount: true } }),
+    prisma.vendorInvoice.count(),
+    prisma.staffMember.count({ where: { societyId: society.id } }),
+    prisma.vendor.count({ where: { societyId: society.id } }),
+    prisma.bill.findMany({
+      where: { billedOn: { gte: trendStart } },
+      select: { billedOn: true, paidAmount: true },
+    }),
+    prisma.voucher.findMany({
+      where: { societyId: society.id, status: "APPROVED", createdAt: { gte: trendStart } },
+      select: { createdAt: true, amount: true },
+    }),
+    prisma.bill.findMany({
+      where: { status: { not: "PAID" } },
+      select: { totalAmount: true, paidAmount: true, overdueDays: true, dueOn: true },
+    }),
+    prisma.voucher.findMany({
+      where: { societyId: society.id, status: "APPROVED" },
+      select: { accountHead: true, amount: true },
+    }),
+    prisma.bill.findMany({
+      select: {
+        totalAmount: true,
+        paidAmount: true,
+        flat: { select: { block: { select: { code: true } } } },
+      },
+    }),
   ]);
+
+  const billed = asNumber(billAgg._sum.totalAmount);
+  const collected = asNumber(billAgg._sum.paidAmount);
+  const due = Math.max(billed - collected, 0);
+  const spent = asNumber(voucherAgg._sum.amount);
+  const cash = asNumber(bankAgg._sum.balance);
+  const salary = asNumber(salaryAgg._sum.salary);
+  const vendorDue = asNumber(invoiceAgg._sum.amount);
+  const collectionPct = billed ? Number(((collected / billed) * 100).toFixed(1)) : 0;
+
+  const incomeByMonth = Object.fromEntries(trendMonths.map((row) => [row.key, 0]));
+  const expenseByMonth = { ...incomeByMonth };
+  trendBills.forEach((row) => {
+    const key = monthKey(row.billedOn);
+    if (key in incomeByMonth) incomeByMonth[key] += asNumber(row.paidAmount);
+  });
+  trendVouchers.forEach((row) => {
+    const key = monthKey(row.createdAt);
+    if (key in expenseByMonth) expenseByMonth[key] += asNumber(row.amount);
+  });
+
+  const ageingTotals = {
+    "0–30 days": 0,
+    "31–60 days": 0,
+    "61–90 days": 0,
+    "90+ days": 0,
+  };
+  unpaidBillRows.forEach((row) => {
+    const leftover = remainingAmount(row);
+    if (!leftover) return;
+    const daysPastDue = Math.max(0, Math.floor((today.getTime() - new Date(row.dueOn).getTime()) / 86400000));
+    const days = row.overdueDays || daysPastDue;
+    ageingTotals[ageingBucket(days)] += leftover;
+  });
+  const ageing = [
+    { bucket: "0–30 days", amount: ageingTotals["0–30 days"], tone: "#1e6b52" },
+    { bucket: "31–60 days", amount: ageingTotals["31–60 days"], tone: "#8a6414" },
+    { bucket: "61–90 days", amount: ageingTotals["61–90 days"], tone: "#c2571f" },
+    { bucket: "90+ days", amount: ageingTotals["90+ days"], tone: "#b0491a" },
+  ].map((row) => ({
+    ...row,
+    pct: due ? `${Math.round((row.amount / due) * 100)}%` : "0%",
+  }));
+
+  const spendByHead = {};
+  allVouchers.forEach((row) => {
+    spendByHead[row.accountHead] = (spendByHead[row.accountHead] || 0) + asNumber(row.amount);
+  });
+  const expenseSplit = Object.entries(spendByHead)
+    .sort((a, b) => b[1] - a[1])
+    .map(([head, amount]) => ({
+      head,
+      amount,
+      pct: spent ? `${Math.round((amount / spent) * 100)}%` : "0%",
+    }));
+
+  const blockMoney = {};
+  billsByBlock.forEach((row) => {
+    const code = row.flat?.block?.code;
+    if (!code) return;
+    if (!blockMoney[code]) blockMoney[code] = { billed: 0, collected: 0 };
+    blockMoney[code].billed += asNumber(row.totalAmount);
+    blockMoney[code].collected += asNumber(row.paidAmount);
+  });
+
   return {
     society: await getSocietyPayload(),
     occupancy: { occupied, vacant, total: flatTotal },
     openTickets,
     overdueBills,
-    staffOnPayroll: await prisma.staffMember.count({ where: { societyId: society.id } }),
-    vendors: await prisma.vendor.count({ where: { societyId: society.id } }),
+    staffOnPayroll,
+    vendors,
+    money: {
+      billed,
+      collected,
+      due,
+      spent,
+      cash,
+      salary,
+      vendorDue,
+      paidBills,
+      unpaidBills,
+      unpaidFlats: new Set(unpaidFlats.map((row) => row.flatId)).size,
+      vouchers: voucherCount,
+      banks: bankCount,
+      invoices: invoiceCount,
+      collectionPct,
+    },
+    trend: trendMonths.map((row) => ({
+      month: row.month,
+      income: incomeByMonth[row.key],
+      expense: expenseByMonth[row.key],
+    })),
+    ageing,
+    expenseSplit,
+    blockMoney,
   };
 }
 
@@ -165,18 +363,21 @@ export async function listMoveEvents() {
 
 export async function listBills() {
   const rows = await prisma.bill.findMany({
-    include: { flat: true, resident: true },
+    include: { flat: { include: { block: true } }, resident: true },
     orderBy: { flat: { code: "asc" } },
   });
   return rows.map((row) => ({
     id: row.id,
     flat: row.flat.code,
+    blockCode: row.flat.block?.code,
     resident: row.resident?.fullName || "—",
     maint: inr(row.maintenanceAmount),
     special: Number(row.specialAmount) ? inr(row.specialAmount) : "—",
     prev: Number(row.previousDue) ? inr(row.previousDue) : "—",
     penalty: Number(row.penaltyAmount) ? inr(row.penaltyAmount) : "—",
     total: inr(row.totalAmount),
+    totalAmount: money(row.totalAmount),
+    paidAmount: money(row.paidAmount),
     status: row.status === "OVERDUE" && row.overdueDays
       ? `Overdue — ${row.overdueDays} days`
       : row.status === "PART_PAID"
@@ -277,7 +478,10 @@ export async function listStaff() {
     role: s.role,
     area: s.area,
     present: `${s.presentDays} / ${s.workingDays}`,
+    presentDays: s.presentDays,
+    workingDays: s.workingDays,
     salary: inr(s.salary),
+    salaryAmount: money(s.salary),
     payout: s.payoutNote ? `Hold — ${s.payoutNote}` : s.payoutStatus === "PROCESSED" ? "Processed" : s.payoutStatus === "PENDING" ? "Pending" : "Hold",
   })));
 }
@@ -356,6 +560,7 @@ export async function listInvoices() {
     no: i.invoiceNo,
     who: i.description,
     amount: inr(i.amount),
+    amountValue: money(i.amount),
     due: i.dueNote,
   }));
 }

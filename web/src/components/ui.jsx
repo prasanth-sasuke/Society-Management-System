@@ -177,6 +177,14 @@ export function PageHead({ tag, title, lead, action }) {
   );
 }
 
+export function EmptyNote({ children }) {
+  return (
+    <div style={{ font: "400 15px Lato,sans-serif", color: "#8a8a80", padding: "8px 0" }}>
+      {children}
+    </div>
+  );
+}
+
 export function EmptyTableNote({ colSpan, children }) {
   return (
     <tr>

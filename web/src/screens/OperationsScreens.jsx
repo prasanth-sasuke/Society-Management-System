@@ -1,4 +1,4 @@
-import { Bar, Card, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
+import { Bar, Card, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
 
 export function HelpdeskScreen({ view, onAdd }) {
   return (
@@ -386,25 +386,25 @@ export function ReportsScreen({ view, onExport }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, marginTop: 22, alignItems: "start" }}>
         <Card>
           <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Outstanding dues — ageing</h2>
-          {view.ageing.map((a) => (
+          {view.ageing.length ? view.ageing.map((a) => (
             <div key={a.bucket} style={{ padding: "13px 0", borderTop: "1px solid #efece3" }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif", marginBottom: 9 }}>
                 <span>{a.bucket}</span><span style={{ font: "500 15px 'IBM Plex Mono',monospace" }}>{a.amount}</span>
               </div>
               <Bar pct={a.pct} color={a.tone} />
             </div>
-          ))}
+          )) : <EmptyNote>No outstanding dues.</EmptyNote>}
         </Card>
         <Card>
           <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Expense split — August</h2>
-          {view.expenseSplit.map((e) => (
+          {view.expenseSplit.length ? view.expenseSplit.map((e) => (
             <div key={e.head} style={{ padding: "13px 0", borderTop: "1px solid #efece3" }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif", marginBottom: 9 }}>
                 <span>{e.head}</span><span style={{ font: "500 15px 'IBM Plex Mono',monospace" }}>{e.amount}</span>
               </div>
               <Bar pct={e.pct} color="#1e6b52" />
             </div>
-          ))}
+          )) : <EmptyNote>No expenses recorded yet.</EmptyNote>}
         </Card>
       </div>
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
@@ -412,7 +412,7 @@ export function ReportsScreen({ view, onExport }) {
         <table>
           <thead><tr><Th>Block</Th><Th>Flats</Th><Th>Occupied</Th><Th>Billed</Th><Th>Collected</Th><Th>Collection %</Th><Th>Open complaints</Th></tr></thead>
           <tbody>
-            {view.blockSummary.map((b) => (
+            {view.blockSummary.length ? view.blockSummary.map((b) => (
               <tr key={b.block}>
                 <Td>{b.block}</Td>
                 <Td mono>{b.flats}</Td>
@@ -422,7 +422,7 @@ export function ReportsScreen({ view, onExport }) {
                 <Td mono style={{ fontWeight: 500, color: b.tone }}>{b.pct}</Td>
                 <Td mono>{b.complaints}</Td>
               </tr>
-            ))}
+            )) : <EmptyTableNote colSpan={7}>No blocks in the register yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>

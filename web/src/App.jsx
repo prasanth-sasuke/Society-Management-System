@@ -220,7 +220,7 @@ export default function App() {
     blocks: <BlocksScreen view={view} onAdd={write("property") ? () => openModal("flat") : null} />,
     residents: <ResidentsScreen view={view} onAdd={write("residents") ? () => openModal("resident") : null} />,
     access: <AccessScreen view={view} onAdd={write("users") ? () => openModal("user") : null} />,
-    bills: <BillsScreen view={view} onGenerate={write("billing") ? () => setToast(view.generateToast) : null} onReceipt={write("billing") ? () => setToast("Receipt MR/2026/Q3/0101 downloaded.") : null} />,
+    bills: <BillsScreen view={view} onGenerate={write("billing") ? () => setToast(view.generateToast) : null} onReceipt={write("billing") && view.receiptPreview ? () => setToast(`Receipt for ${view.receiptPreview.flat} is not downloaded yet — PDF export is still a placeholder.`) : null} />,
     accounts: <AccountsScreen view={view} />,
     helpdesk: <HelpdeskScreen view={view} onAdd={write("helpdesk") ? () => openModal("ticket") : null} />,
     security: <SecurityScreen view={view} />,
