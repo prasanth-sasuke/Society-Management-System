@@ -21,6 +21,7 @@ import {
   parseLooseDate,
   parseSqft,
   dayLabel,
+  societyNow,
 } from "../labels.js";
 import { getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
 
@@ -518,61 +519,6 @@ export async function createTicket(body) {
   return serializeTicket(created);
 }
 
-export async function listStaff() {
-  const society = await getSociety();
-  return prisma.staffMember.findMany({
-    where: { societyId: society.id },
-    orderBy: { name: "asc" },
-  }).then((rows) => rows.map((s) => ({
-    id: s.id,
-    name: s.name,
-    role: s.role,
-    area: s.area,
-    present: `${s.presentDays} / ${s.workingDays}`,
-    presentDays: s.presentDays,
-    workingDays: s.workingDays,
-    salary: inr(s.salary),
-    salaryAmount: money(s.salary),
-    payout: s.payoutNote ? `Hold — ${s.payoutNote}` : s.payoutStatus === "PROCESSED" ? "Processed" : s.payoutStatus === "PENDING" ? "Pending" : "Hold",
-  })));
-}
-
-export async function listRoster() {
-  const society = await getSociety();
-  const duties = await prisma.rosterDuty.findMany({
-    where: { societyId: society.id },
-    include: { assignments: { orderBy: { dayIndex: "asc" } } },
-    orderBy: { name: "asc" },
-  });
-  const days = duties[0]?.assignments.map((a) => a.dayLabel) || [];
-  return {
-    days,
-    rows: duties.map((d) => ({
-      duty: d.name,
-      cells: d.assignments.map((a) => ({
-        who: a.personName,
-        isOff: a.isOff,
-      })),
-    })),
-  };
-}
-
-export async function listFollowUps() {
-  const society = await getSociety();
-  const rows = await prisma.followUp.findMany({
-    where: { societyId: society.id },
-    orderBy: { dueOn: "asc" },
-  });
-  return rows.map((f) => ({
-    id: f.id,
-    task: f.task,
-    owner: f.ownerName,
-    due: f.dueOn.toISOString().slice(5, 10),
-    verifier: f.verifier,
-    status: f.status.replaceAll("_", " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()),
-  }));
-}
-
 export async function listVendors() {
   const society = await getSociety();
   const rows = await prisma.vendor.findMany({ where: { societyId: society.id }, orderBy: { name: "asc" } });
@@ -675,8 +621,7 @@ export async function listBreakdowns() {
 
 export async function listFacilities() {
   const society = await getSociety();
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = societyNow().date;
   const rows = await prisma.facility.findMany({
     where: { societyId: society.id },
     include: { bookings: { where: { bookingDate: { gte: today } }, orderBy: { bookingDate: "asc" } } },
@@ -724,34 +669,6 @@ export async function createBooking(body) {
     include: { facility: true, flat: true },
   });
   return serializeBooking(created);
-}
-
-export async function listSecurity() {
-  const society = await getSociety();
-  const [shifts, guards, handover, patrol, incidents] = await Promise.all([
-    prisma.securityShift.findMany({ where: { societyId: society.id }, orderBy: { sortOrder: "asc" } }),
-    prisma.guardAttendance.findMany({ where: { societyId: society.id }, orderBy: { name: "asc" } }),
-    prisma.handoverNote.findMany({ where: { societyId: society.id } }),
-    prisma.patrolCheck.findMany({ where: { societyId: society.id }, orderBy: { sortOrder: "asc" } }),
-    prisma.incident.findMany({ where: { societyId: society.id }, orderBy: { happenedAt: "desc" } }),
-  ]);
-  return {
-    shifts: shifts.map((s) => ({ name: s.name, hours: s.hours, staff: s.staffNote, state: s.state.replace("_", " ") })),
-    guards: guards.map((g) => ({
-      name: g.name,
-      post: g.post,
-      shift: g.shift,
-      times: g.times,
-      status: g.statusNote || g.status.replace("_", " "),
-    })),
-    handover: handover.map((h) => ({ when: h.whenLabel, note: h.note })),
-    patrol: patrol.map((p) => ({ point: p.point, mark: p.mark })),
-    incidents: incidents.map((i) => ({
-      what: i.description,
-      when: i.happenedAt.toISOString(),
-      status: i.status.replaceAll("_", " "),
-    })),
-  };
 }
 
 function serializeFlat(flat) {

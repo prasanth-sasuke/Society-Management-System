@@ -23,17 +23,33 @@ import {
   vendorUpdateSchema,
   userCreateSchema,
   voucherCreateSchema,
+  staffSchema,
+  attendanceSaveSchema,
+  rosterDutySchema,
+  followUpSchema,
+  shiftSchema,
+  guardEntrySchema,
+  handoverSchema,
+  patrolPointSchema,
+  patrolUpdateSchema,
+  incidentSchema,
 } from "./validate.js";
 import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
 import * as billing from "./services/billing.js";
 import * as records from "./services/records.js";
 import * as operations from "./services/operations.js";
+import * as staffing from "./services/staffing.js";
+import * as security from "./services/security.js";
 
 export const api = Router();
 
 function authRead(moduleName, handler) {
   return [requireAuth, requirePermission(moduleName, "read"), asyncHandler(handler)];
+}
+
+function authWrite(moduleName, schema, handler) {
+  return [requireAuth, requirePermission(moduleName, "write"), ...(schema ? [validate(schema)] : []), asyncHandler(handler)];
 }
 
 api.get("/health", asyncHandler(async (_req, res) => {
@@ -180,15 +196,59 @@ api.delete("/tickets/:id", requireAuth, requirePermission("helpdesk", "write"), 
 }));
 
 api.get("/staff", ...authRead("staff", async (_req, res) => {
-  res.json(await catalog.listStaff());
+  res.json(await staffing.listStaff());
+}));
+
+api.post("/staff", ...authWrite("staff", staffSchema, async (req, res) => {
+  res.status(201).json(await staffing.createStaff(req.body));
+}));
+
+api.patch("/staff/:id", ...authWrite("staff", staffSchema, async (req, res) => {
+  res.json(await staffing.updateStaff(req.params.id, req.body));
+}));
+
+api.delete("/staff/:id", ...authWrite("staff", null, async (req, res) => {
+  res.json(await staffing.deleteStaff(req.params.id));
+}));
+
+api.get("/staff-attendance", ...authRead("staff", async (req, res) => {
+  res.json(await staffing.getAttendance(String(req.query.date || "")));
+}));
+
+api.put("/staff-attendance", ...authWrite("staff", attendanceSaveSchema, async (req, res) => {
+  res.json(await staffing.saveAttendance(req.body));
 }));
 
 api.get("/roster", ...authRead("staff", async (_req, res) => {
-  res.json(await catalog.listRoster());
+  res.json(await staffing.listRoster());
+}));
+
+api.post("/roster", ...authWrite("staff", rosterDutySchema, async (req, res) => {
+  res.status(201).json(await staffing.createDuty(req.body));
+}));
+
+api.patch("/roster/:id", ...authWrite("staff", rosterDutySchema, async (req, res) => {
+  res.json(await staffing.updateDuty(req.params.id, req.body));
+}));
+
+api.delete("/roster/:id", ...authWrite("staff", null, async (req, res) => {
+  res.json(await staffing.deleteDuty(req.params.id));
 }));
 
 api.get("/follow-ups", ...authRead("staff", async (_req, res) => {
-  res.json(await catalog.listFollowUps());
+  res.json(await staffing.listFollowUps());
+}));
+
+api.post("/follow-ups", ...authWrite("staff", followUpSchema, async (req, res) => {
+  res.status(201).json(await staffing.createFollowUp(req.body));
+}));
+
+api.patch("/follow-ups/:id", ...authWrite("staff", followUpSchema, async (req, res) => {
+  res.json(await staffing.updateFollowUp(req.params.id, req.body));
+}));
+
+api.delete("/follow-ups/:id", ...authWrite("staff", null, async (req, res) => {
+  res.json(await staffing.deleteFollowUp(req.params.id));
 }));
 
 api.get("/vendors", ...authRead("vendors", async (_req, res) => {
@@ -264,5 +324,65 @@ api.delete("/bookings/:id", requireAuth, requirePermission("facility", "write"),
 }));
 
 api.get("/security", ...authRead("security", async (_req, res) => {
-  res.json(await catalog.listSecurity());
+  res.json(await security.listSecurity());
+}));
+
+api.post("/security/shifts", ...authWrite("security", shiftSchema, async (req, res) => {
+  res.status(201).json(await security.createShift(req.body));
+}));
+
+api.patch("/security/shifts/:id", ...authWrite("security", shiftSchema, async (req, res) => {
+  res.json(await security.updateShift(req.params.id, req.body));
+}));
+
+api.delete("/security/shifts/:id", ...authWrite("security", null, async (req, res) => {
+  res.json(await security.deleteShift(req.params.id));
+}));
+
+api.post("/security/guards", ...authWrite("security", guardEntrySchema, async (req, res) => {
+  res.status(201).json(await security.createGuardEntry(req.body));
+}));
+
+api.patch("/security/guards/:id", ...authWrite("security", guardEntrySchema, async (req, res) => {
+  res.json(await security.updateGuardEntry(req.params.id, req.body));
+}));
+
+api.delete("/security/guards/:id", ...authWrite("security", null, async (req, res) => {
+  res.json(await security.deleteGuardEntry(req.params.id));
+}));
+
+api.post("/security/handover", ...authWrite("security", handoverSchema, async (req, res) => {
+  res.status(201).json(await security.createHandover(req.body));
+}));
+
+api.delete("/security/handover/:id", ...authWrite("security", null, async (req, res) => {
+  res.json(await security.deleteHandover(req.params.id));
+}));
+
+api.post("/security/patrol", ...authWrite("security", patrolPointSchema, async (req, res) => {
+  res.status(201).json(await security.createPatrolPoint(req.body));
+}));
+
+api.post("/security/patrol/reset", ...authWrite("security", null, async (_req, res) => {
+  res.json(await security.resetPatrol());
+}));
+
+api.patch("/security/patrol/:id", ...authWrite("security", patrolUpdateSchema, async (req, res) => {
+  res.json(await security.updatePatrolPoint(req.params.id, req.body));
+}));
+
+api.delete("/security/patrol/:id", ...authWrite("security", null, async (req, res) => {
+  res.json(await security.deletePatrolPoint(req.params.id));
+}));
+
+api.post("/security/incidents", ...authWrite("security", incidentSchema, async (req, res) => {
+  res.status(201).json(await security.createIncident(req.body));
+}));
+
+api.patch("/security/incidents/:id", ...authWrite("security", incidentSchema, async (req, res) => {
+  res.json(await security.updateIncident(req.params.id, req.body));
+}));
+
+api.delete("/security/incidents/:id", ...authWrite("security", null, async (req, res) => {
+  res.json(await security.deleteIncident(req.params.id));
 }));

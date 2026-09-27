@@ -64,6 +64,21 @@ export const CREATE_MODULE = {
   bookingEdit: "facility",
   bank: "finance",
   bankEdit: "finance",
+  staff: "staff",
+  staffEdit: "staff",
+  duty: "staff",
+  dutyEdit: "staff",
+  followUp: "staff",
+  followUpEdit: "staff",
+  shift: "security",
+  shiftEdit: "security",
+  guard: "security",
+  guardEdit: "security",
+  handover: "security",
+  patrolPoint: "security",
+  patrolEdit: "security",
+  incident: "security",
+  incidentEdit: "security",
 };
 
 export function getToken() {

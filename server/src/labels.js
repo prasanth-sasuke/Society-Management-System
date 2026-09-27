@@ -74,6 +74,52 @@ export const FACILITY_STATUS = {
   MAINTENANCE: "Maintenance",
 };
 
+export const STAFF_DAY = { PRESENT: "Present", HALF_DAY: "Half day", LEAVE: "Leave", ABSENT: "Absent" };
+
+export const PAYOUT_STATUS = { PENDING: "Pending", PROCESSED: "Processed", HOLD: "Hold" };
+
+export const FOLLOW_UP_STATUS = {
+  SCHEDULED: "Scheduled",
+  IN_PROGRESS: "In progress",
+  VERIFIED: "Verified",
+  ESCALATED: "Escalated",
+};
+
+export const GUARD_STATUS = { PRESENT: "Present", LATE: "Late", ON_DUTY: "On duty", ABSENT: "Absent", ROSTERED: "Rostered" };
+
+export const INCIDENT_STATUS = {
+  UNDER_REVIEW: "Under review",
+  CLOSED: "Closed",
+  CLOSED_WARNING: "Closed with warning",
+};
+
+const OFFSET = String(process.env.SOCIETY_UTC_OFFSET || "+05:30");
+const OFFSET_MINUTES = (() => {
+  const m = OFFSET.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!m) return 330;
+  return (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]));
+})();
+
+export function societyNow() {
+  const local = new Date(Date.now() + OFFSET_MINUTES * 60000);
+  return {
+    iso: local.toISOString().slice(0, 10),
+    minutes: local.getUTCHours() * 60 + local.getUTCMinutes(),
+    time: local.toISOString().slice(11, 16),
+    date: new Date(`${local.toISOString().slice(0, 10)}T00:00:00.000Z`),
+  };
+}
+
+export function fromSocietyLocal(value) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text)) return null;
+  return new Date(`${text}:00${OFFSET}`);
+}
+
+export function toSocietyLocal(date) {
+  return new Date(date.getTime() + OFFSET_MINUTES * 60000).toISOString().slice(0, 16);
+}
+
 export function fromLabel(map, value, field) {
   if (value == null || String(value).trim() === "") {
     throw new AppError(400, `${field} is required`);

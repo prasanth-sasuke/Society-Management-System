@@ -5,12 +5,15 @@ import {
   approveVoucherRequest,
   createRecord,
   deleteRecord,
+  fetchAttendance,
   fetchCatalog,
   fetchSession,
   formatApiError,
   loginRequest,
   logoutRequest,
   moveOutResidentRequest,
+  resetPatrolRequest,
+  saveAttendance,
   toastForCreate,
 } from "./api.js";
 import { CREATE_MODULE, canOpenScreen, canWrite, clearToken, getToken, setToken } from "./auth.js";
@@ -31,11 +34,9 @@ import {
   HelpdeskScreen,
   PpmScreen,
   ReportsScreen,
-  RosterScreen,
-  SecurityScreen,
-  StaffScreen,
   VendorsScreen,
 } from "./screens/OperationsScreens.jsx";
+import { RosterScreen, SecurityScreen, StaffScreen } from "./screens/StaffSecurityScreens.jsx";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -362,6 +363,86 @@ export default function App() {
     runAction(() => deleteRecord("bank", row.id), (r) => `${r.name} removed.`);
   }
 
+  function removeRecord(kind, id, question, done) {
+    if (!window.confirm(question)) return;
+    runAction(() => deleteRecord(kind, id), done);
+  }
+
+  const staffActions = {
+    add: () => openModal("staff"),
+    edit: (row) => openModal("staffEdit", {
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      area: blankDash(row.area),
+      salary: String(row.salaryAmount ?? ""),
+      workingDays: String(row.workingDays ?? 26),
+      payout: row.payoutStatus,
+      payoutNote: row.payoutNote,
+    }),
+    remove: (row) => removeRecord("staff", row.id, `Remove ${row.name} from the staff register? Their attendance history is deleted too.`, (r) => `${r.name} removed.`),
+    loadAttendance: fetchAttendance,
+    saveAttendance: async (date, entries) => {
+      const result = await saveAttendance(date, entries);
+      setToast(`Attendance saved for ${result.label} — ${result.present} present, ${result.halfDay} half day, ${result.leave} leave, ${result.absent} absent.`);
+      await load(true);
+      return result;
+    },
+  };
+
+  const rosterActions = {
+    addDuty: () => openModal("duty"),
+    editDuty: (row) => {
+      const keys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+      const preset = { id: row.id, duty: row.duty };
+      keys.forEach((key, i) => {
+        const cell = row.cells[i];
+        preset[key] = cell && !cell.isOff ? cell.who : "";
+      });
+      openModal("dutyEdit", preset);
+    },
+    removeDuty: (row) => removeRecord("duty", row.id, `Remove the "${row.duty}" duty from the roster?`, (r) => `${r.duty} removed from the roster.`),
+    addFollowUp: () => openModal("followUp"),
+    editFollowUp: (row) => openModal("followUpEdit", {
+      id: row.id,
+      task: row.task,
+      owner: row.owner,
+      due: row.dueIso,
+      verifier: blankDash(row.verifier),
+      status: row.status,
+    }),
+    removeFollowUp: (row) => removeRecord("followUp", row.id, `Delete the follow-up "${row.task}"?`, (r) => `Follow-up deleted: ${r.task}.`),
+  };
+
+  const securityActions = {
+    addShift: () => openModal("shift"),
+    editShift: (row) => openModal("shiftEdit", { id: row.id, name: row.name, start: row.start, end: row.end, staff: blankDash(row.staff) }),
+    removeShift: (row) => removeRecord("shift", row.id, `Delete the ${row.name} shift?`, (r) => `${r.name} shift deleted.`),
+    addGuard: () => openModal("guard"),
+    editGuard: (row) => openModal("guardEdit", {
+      id: row.id,
+      name: row.name,
+      post: row.post,
+      shift: row.shift,
+      timeIn: row.timeIn,
+      timeOut: row.timeOut,
+      status: row.status,
+    }),
+    removeGuard: (row) => removeRecord("guard", row.id, `Delete today's attendance entry for ${row.name}?`, (r) => `Entry for ${r.name} deleted.`),
+    addHandover: () => openModal("handover"),
+    removeHandover: (row) => removeRecord("handover", row.id, "Delete this handover note?", "Handover note deleted."),
+    addPatrol: () => openModal("patrolPoint"),
+    editPatrol: (row) => openModal("patrolEdit", { id: row.id, point: row.point, state: row.state === "Pending" ? "Checked" : row.state, note: row.note }),
+    removePatrol: (row) => removeRecord("patrol", row.id, `Delete the checkpoint "${row.point}"?`, (r) => `Checkpoint deleted: ${r.point}.`),
+    resetPatrol: () => {
+      if (!window.confirm("Start a new patrol round? Every checkpoint goes back to Pending.")) return;
+      runAction(resetPatrolRequest, (r) => `New patrol round started — ${r.count} checkpoint${r.count === 1 ? "" : "s"} pending.`);
+    },
+    addIncident: () => openModal("incident"),
+    editIncident: (row) => openModal("incidentEdit", { id: row.id, what: row.what, when: row.whenLocal, status: row.status }),
+    removeIncident: (row) => removeRecord("incident", row.id, "Delete this incident from the register?", "Incident deleted."),
+  };
+
   const closeModal = useCallback(() => {
     if (submitting) return;
     setModal(null);
@@ -464,9 +545,9 @@ export default function App() {
         onDelete={write("helpdesk") ? deleteTicket : null}
       />
     ),
-    security: <SecurityScreen view={view} />,
-    staff: <StaffScreen view={view} onAttendance={write("staff") ? () => setToast("Attendance saved for 27 Aug — 12 present, 1 leave, 1 absent.") : null} />,
-    roster: <RosterScreen view={view} onPublish={write("staff") ? () => setToast("Roster published for 24–30 Aug — 14 staff notified.") : null} />,
+    security: <SecurityScreen view={view} actions={write("security") ? securityActions : null} />,
+    staff: <StaffScreen view={view} actions={write("staff") ? staffActions : null} />,
+    roster: <RosterScreen view={view} actions={write("staff") ? rosterActions : null} />,
     vendors: (
       <VendorsScreen
         view={view}

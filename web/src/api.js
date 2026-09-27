@@ -48,7 +48,26 @@ const CREATE_PATHS = {
   bookingEdit: { method: "PATCH", path: (body) => `/api/bookings/${encodeURIComponent(body.id)}` },
   bank: "/api/bank-accounts",
   bankEdit: { method: "PATCH", path: (body) => `/api/bank-accounts/${encodeURIComponent(body.id)}` },
+  staff: "/api/staff",
+  staffEdit: patchTo("/api/staff"),
+  duty: "/api/roster",
+  dutyEdit: patchTo("/api/roster"),
+  followUp: "/api/follow-ups",
+  followUpEdit: patchTo("/api/follow-ups"),
+  shift: "/api/security/shifts",
+  shiftEdit: patchTo("/api/security/shifts"),
+  guard: "/api/security/guards",
+  guardEdit: patchTo("/api/security/guards"),
+  handover: "/api/security/handover",
+  patrolPoint: "/api/security/patrol",
+  patrolEdit: patchTo("/api/security/patrol"),
+  incident: "/api/security/incidents",
+  incidentEdit: patchTo("/api/security/incidents"),
 };
+
+function patchTo(base) {
+  return { method: "PATCH", path: (body) => `${base}/${encodeURIComponent(body.id)}` };
+}
 
 const DELETE_PATHS = {
   flat: (id) => `/api/flats/${encodeURIComponent(id)}`,
@@ -58,6 +77,14 @@ const DELETE_PATHS = {
   asset: (id) => `/api/assets/${encodeURIComponent(id)}`,
   booking: (id) => `/api/bookings/${encodeURIComponent(id)}`,
   bank: (id) => `/api/bank-accounts/${encodeURIComponent(id)}`,
+  staff: (id) => `/api/staff/${encodeURIComponent(id)}`,
+  duty: (id) => `/api/roster/${encodeURIComponent(id)}`,
+  followUp: (id) => `/api/follow-ups/${encodeURIComponent(id)}`,
+  shift: (id) => `/api/security/shifts/${encodeURIComponent(id)}`,
+  guard: (id) => `/api/security/guards/${encodeURIComponent(id)}`,
+  handover: (id) => `/api/security/handover/${encodeURIComponent(id)}`,
+  patrol: (id) => `/api/security/patrol/${encodeURIComponent(id)}`,
+  incident: (id) => `/api/security/incidents/${encodeURIComponent(id)}`,
 };
 
 export class ApiError extends Error {
@@ -164,6 +191,18 @@ export function deleteRecord(kind, id) {
   return request(path(id), { method: "DELETE" });
 }
 
+export function fetchAttendance(date) {
+  return request(`/api/staff-attendance?date=${encodeURIComponent(date)}`);
+}
+
+export function saveAttendance(date, entries) {
+  return request("/api/staff-attendance", { method: "PUT", body: JSON.stringify({ date, entries }) });
+}
+
+export function resetPatrolRequest() {
+  return request("/api/security/patrol/reset", { method: "POST" });
+}
+
 export function moveOutResidentRequest(id) {
   return request(`/api/residents/${encodeURIComponent(id)}/move-out`, { method: "POST" });
 }
@@ -195,5 +234,20 @@ export function toastForCreate(kind, created) {
   if (kind === "bookingEdit") return `${created.facility} booking for ${created.flat} on ${created.date} updated.`;
   if (kind === "bank") return `${created.name} added — balance ${created.balance}.`;
   if (kind === "bankEdit") return `${created.name} updated — balance ${created.balance}.`;
+  if (kind === "staff") return `${created.name} added to the staff register.`;
+  if (kind === "staffEdit") return `${created.name} updated.`;
+  if (kind === "duty") return `${created.duty} added to the roster.`;
+  if (kind === "dutyEdit") return `${created.duty} updated.`;
+  if (kind === "followUp") return `Follow-up added: ${created.task}.`;
+  if (kind === "followUpEdit") return `${created.task} — ${created.status}.`;
+  if (kind === "shift") return `${created.name} shift (${created.hours}) added.`;
+  if (kind === "shiftEdit") return `${created.name} shift updated (${created.hours}).`;
+  if (kind === "guard") return `${created.name} marked ${created.status.toLowerCase()} for today.`;
+  if (kind === "guardEdit") return `${created.name} — ${created.status}.`;
+  if (kind === "handover") return "Handover note saved.";
+  if (kind === "patrolPoint") return `Checkpoint added: ${created.point}.`;
+  if (kind === "patrolEdit") return `${created.point} — ${created.mark}.`;
+  if (kind === "incident") return `Incident recorded (${created.status}).`;
+  if (kind === "incidentEdit") return `Incident updated (${created.status}).`;
   return "Saved.";
 }

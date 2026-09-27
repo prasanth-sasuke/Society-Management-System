@@ -37,9 +37,9 @@ function formatStamp(value) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  const hh = String(date.getUTCHours()).padStart(2, "0");
-  const mm = String(date.getUTCMinutes()).padStart(2, "0");
-  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}, ${hh}:${mm}`;
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${date.getDate()} ${MONTHS[date.getMonth()]}, ${hh}:${mm}`;
 }
 
 function occupancyTone(status) {
@@ -148,6 +148,7 @@ function reminderTone(when) {
 
 function patrolTone(mark) {
   const label = String(mark).toLowerCase();
+  if (label === "pending") return "#8a8a80";
   if (label.includes("not")) return "#b0491a";
   if (label.includes("open") || label.includes("fixed")) return "#8a6414";
   return "#1e6b52";
@@ -361,17 +362,12 @@ export function buildViewFromApi(catalog, permissions = {}) {
     trailTicket: trailSource?.id || "—",
     trail: (trailSource?.events || []).map((row) => ({ when: formatStamp(row.when), what: row.what })),
     feedback: [],
-    shifts: (security.shifts || []).map((row) => {
-      const state = titleCase(row.state);
-      return { ...row, state, ...tone(shiftTone(state)) };
-    }),
+    securityToday: security.today || "",
+    shifts: (security.shifts || []).map((row) => ({ ...row, ...tone(shiftTone(row.state)) })),
     guards: (security.guards || []).map((row) => ({ ...row, ...tone(guardTone(row.status)) })),
     handover: security.handover || [],
     patrol: (security.patrol || []).map((row) => ({ ...row, tone: patrolTone(row.mark) })),
-    incidents: (security.incidents || []).map((row) => {
-      const status = titleCase(row.status);
-      return { ...row, when: formatStamp(row.when), status, ...tone(incidentTone(status)) };
-    }),
+    incidents: (security.incidents || []).map((row) => ({ ...row, when: formatStamp(row.when), ...tone(incidentTone(row.status)) })),
     staffKpis: [
       { label: "On payroll", value: String(staffRows.length), note: `${Object.keys(roleCounts).length} categories`, tone: "#8a8a80" },
       { label: "Attendance on file", value: staffRows.length ? `${presentDays} / ${workingDays}` : "0 / 0", note: "Present vs working days", tone: "#8a8a80" },
@@ -379,6 +375,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
       { label: "Pending payouts", value: String(pendingPayouts), note: "Hold or pending", tone: pendingPayouts ? "#8a6414" : "#8a8a80" },
     ],
     staffRows,
+    staffMonth: `${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()} · present days so far this month`,
     days: roster.days?.length ? roster.days : [],
     rosterRows: (roster.rows || []).map((row) => ({
       duty: row.duty,
@@ -388,7 +385,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
           : { who: cell.who, bg: T.green[0], fg: T.green[1] }
       )),
     })),
-    followUps: (catalog.followUps || []).map((row) => ({ ...row, due: formatDay(row.due), ...tone(followTone(row.status)) })),
+    followUps: (catalog.followUps || []).map((row) => ({ ...row, ...tone(followTone(row.status)) })),
     vendors,
     quotes: catalog.quotations || [],
     invoices: (catalog.invoices || []).map((row) => ({ ...row, tone: dueTone(row.due) })),

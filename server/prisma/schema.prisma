@@ -106,6 +106,13 @@ enum BookingPaymentStatus {
   NA
 }
 
+enum StaffDayStatus {
+  PRESENT
+  HALF_DAY
+  LEAVE
+  ABSENT
+}
+
 enum ShiftState {
   COMPLETED
   ON_DUTY
@@ -444,10 +451,26 @@ model StaffMember {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  society    Society           @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  attendance StaffAttendance[]
 
   @@index([societyId])
   @@map("staff_members")
+}
+
+model StaffAttendance {
+  id        String         @id @default(uuid())
+  staffId   String         @map("staff_id")
+  date      DateTime       @db.Date
+  status    StaffDayStatus
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@index([date])
+  @@map("staff_attendance")
 }
 
 model RosterDuty {

@@ -130,6 +130,89 @@ export const bankAccountSchema = z.object({
   balance: amount,
 });
 
+const text = (max) => z.string().trim().min(1).max(max);
+const optionalText = (max) => z.string().trim().max(max).optional().default("");
+const hhmm = z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a time");
+const optionalTime = z.union([hhmm, z.literal("")]).optional().default("");
+
+const workingDays = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((v) => (v === undefined || v === "" ? 26 : Number(v)))
+  .pipe(z.number({ message: "Working days must be a number" }).int().min(1, "Working days must be 1–31").max(31, "Working days must be 1–31"));
+
+export const staffSchema = z.object({
+  name: text(80),
+  role: text(60),
+  area: optionalText(80),
+  salary: amount,
+  workingDays,
+  payout: text(20),
+  payoutNote: optionalText(120),
+});
+
+export const attendanceSaveSchema = z.object({
+  date: isoDate,
+  entries: z.array(z.object({
+    staffId: z.string().trim().min(1),
+    status: z.string().trim().optional().default(""),
+  })).min(1).max(500),
+});
+
+export const rosterDutySchema = z.object({
+  duty: text(80),
+  mon: optionalText(60),
+  tue: optionalText(60),
+  wed: optionalText(60),
+  thu: optionalText(60),
+  fri: optionalText(60),
+  sat: optionalText(60),
+  sun: optionalText(60),
+});
+
+export const followUpSchema = z.object({
+  task: text(160),
+  owner: text(80),
+  due: isoDate,
+  verifier: optionalText(80),
+  status: text(20),
+});
+
+export const shiftSchema = z.object({
+  name: text(40),
+  start: hhmm,
+  end: hhmm,
+  staff: optionalText(200),
+});
+
+export const guardEntrySchema = z.object({
+  name: text(80),
+  post: text(60),
+  shift: text(40),
+  timeIn: optionalTime,
+  timeOut: optionalTime,
+  status: text(20),
+});
+
+export const handoverSchema = z.object({
+  handover: optionalText(60),
+  note: text(500),
+});
+
+export const patrolPointSchema = z.object({ point: text(120) });
+
+export const patrolUpdateSchema = z.object({
+  point: text(120),
+  state: text(20),
+  note: optionalText(200),
+});
+
+export const incidentSchema = z.object({
+  what: text(300),
+  when: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Pick the date and time"),
+  status: text(30),
+});
+
 export function validate(schema) {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);

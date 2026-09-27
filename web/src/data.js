@@ -225,6 +225,123 @@ MODALS.bankEdit = {
   fields: MODALS.bank.fields,
 };
 
+const withEdit = (kind, title, extra = {}) => {
+  MODALS[`${kind}Edit`] = { ...MODALS[kind], title, submit: "Save changes", ...extra };
+};
+
+MODALS.staff = {
+  title: "Add staff member",
+  kicker: "Module 8 · Staff Management",
+  submit: "Save staff",
+  fields: [
+    { key: "name", label: "Full name", placeholder: "Lakshmi", required: true },
+    { key: "role", label: "Role", placeholder: "Housekeeping", required: true },
+    { key: "area", label: "Duty area", placeholder: "Block A & B common areas" },
+    { key: "salary", label: "Monthly salary (₹)", placeholder: "14000", required: true },
+    { key: "workingDays", label: "Working days per month", placeholder: "26", default: "26" },
+    { key: "payout", label: "Salary this month", options: ["Pending", "Processed", "Hold"] },
+    { key: "payoutNote", label: "Hold reason (if on hold)", placeholder: "Bank details pending" },
+  ],
+};
+withEdit("staff", "Edit staff member");
+
+const DAY_FIELDS = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]]
+  .map(([key, label]) => ({ key, label, placeholder: "Name, or leave blank for Off" }));
+
+MODALS.duty = {
+  title: "Add roster duty",
+  kicker: "Module 9 · Duty Roster",
+  submit: "Save duty",
+  fields: [{ key: "duty", label: "Duty", placeholder: "Gate A — morning", required: true }, ...DAY_FIELDS],
+};
+withEdit("duty", "Edit roster duty");
+
+MODALS.followUp = {
+  title: "Add follow-up",
+  kicker: "Module 9 · Duty Roster & Follow-up",
+  submit: "Save follow-up",
+  fields: [
+    { key: "task", label: "Task", placeholder: "Clean terrace drains", required: true },
+    { key: "owner", label: "Owner", placeholder: "Murugan", required: true },
+    { key: "due", label: "Due date", type: "date", required: true, default: () => isoDay(new Date()) },
+    { key: "verifier", label: "Verified by", placeholder: "Manager" },
+    { key: "status", label: "Status", options: ["Scheduled", "In progress", "Verified", "Escalated"] },
+  ],
+};
+withEdit("followUp", "Update follow-up");
+
+MODALS.shift = {
+  title: "Add security shift",
+  kicker: "Module 7 · Security Management",
+  submit: "Save shift",
+  fields: [
+    { key: "name", label: "Shift name", placeholder: "Morning", required: true },
+    { key: "start", label: "Starts at", type: "time", required: true, default: "06:00" },
+    { key: "end", label: "Ends at", type: "time", required: true, default: "14:00" },
+    { key: "staff", label: "Guards on this shift", placeholder: "Raju (Gate A), Kumar (Gate B)" },
+  ],
+};
+withEdit("shift", "Edit security shift");
+
+MODALS.guard = {
+  title: "Add guard attendance (today)",
+  kicker: "Module 7 · Security Management",
+  submit: "Save entry",
+  fields: [
+    { key: "name", label: "Guard name", placeholder: "Raju", required: true },
+    { key: "post", label: "Post", placeholder: "Main gate", required: true },
+    { key: "shift", label: "Shift", placeholder: "Morning", required: true },
+    { key: "timeIn", label: "In time", type: "time" },
+    { key: "timeOut", label: "Out time", type: "time" },
+    { key: "status", label: "Status", options: ["Present", "Late", "Absent", "On duty"] },
+  ],
+};
+withEdit("guard", "Edit guard attendance");
+
+MODALS.handover = {
+  title: "Add shift handover note",
+  kicker: "Module 7 · Security Management",
+  submit: "Save note",
+  fields: [
+    { key: "handover", label: "Handover", placeholder: "Night → Morning" },
+    { key: "note", label: "Note", placeholder: "Gate B light not working; visitor log handed over", required: true },
+  ],
+};
+
+MODALS.patrolPoint = {
+  title: "Add patrol checkpoint",
+  kicker: "Module 7 · Security Management",
+  submit: "Save checkpoint",
+  fields: [{ key: "point", label: "Checkpoint", placeholder: "Terrace door locked", required: true }],
+};
+
+MODALS.patrolEdit = {
+  title: "Update patrol checkpoint",
+  kicker: "Module 7 · Security Management",
+  submit: "Save",
+  fields: [
+    { key: "point", label: "Checkpoint", required: true },
+    { key: "state", label: "Result", options: ["Checked", "Issue found", "Pending"] },
+    { key: "note", label: "Issue details (if any)", placeholder: "Door found open, locked it" },
+  ],
+};
+
+MODALS.incident = {
+  title: "Report incident",
+  kicker: "Module 7 · Security Management",
+  submit: "Save incident",
+  fields: [
+    { key: "what", label: "What happened", placeholder: "Unknown visitor tried to enter without pass", required: true },
+    { key: "when", label: "Date & time", type: "datetime-local", required: true, default: () => localStamp(new Date()) },
+    { key: "status", label: "Status", options: ["Under review", "Closed", "Closed with warning"] },
+  ],
+};
+withEdit("incident", "Update incident");
+
+function localStamp(date) {
+  return `${isoDay(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function monthLabel(date) {
