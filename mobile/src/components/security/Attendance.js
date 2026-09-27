@@ -4,7 +4,7 @@ import { endpoints } from '../../api/endpoints';
 import { Chips, TextField, TimeField, nowHhmm } from '../fields';
 import { Button, Card, Notice } from '../ui';
 import { colors, type } from '../../theme';
-import { Empty, FieldLabel, Item, confirmDelete, useSubmit } from './common';
+import { Empty, FieldLabel, Item, confirmDelete, useSubmit } from '../common';
 
 const STATUSES = ['Present', 'Late', 'On duty', 'Absent'];
 

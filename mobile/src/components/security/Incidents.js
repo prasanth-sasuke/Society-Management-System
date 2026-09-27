@@ -5,7 +5,7 @@ import { Chips, DateField, TextField, TimeField, nowHhmm } from '../fields';
 import { Button, Card, Notice } from '../ui';
 import { isoDay } from '../../format';
 import { colors, type } from '../../theme';
-import { Empty, FieldLabel, Item, confirmDelete, useSubmit } from './common';
+import { Empty, FieldLabel, Item, confirmDelete, useSubmit } from '../common';
 
 const STATUSES = ['Under review', 'Closed', 'Closed with warning'];
 

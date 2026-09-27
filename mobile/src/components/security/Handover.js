@@ -4,7 +4,7 @@ import { endpoints } from '../../api/endpoints';
 import { TextField } from '../fields';
 import { Button, Card, Notice } from '../ui';
 import { colors, type } from '../../theme';
-import { Empty, useSubmit } from './common';
+import { Empty, useSubmit } from '../common';
 
 export function Handover({ data, manage, onDone }) {
   const [writing, setWriting] = useState(false);

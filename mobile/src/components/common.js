@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { apiRequest } from '../../api/client';
-import { colors, radius, type } from '../../theme';
+import { apiRequest } from '../api/client';
+import { colors, radius, type } from '../theme';
 
 // Runs a request for a form: tracks busy/error and hands the result to onDone.
 export function useSubmit(onDone) {

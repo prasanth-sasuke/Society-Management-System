@@ -4,7 +4,7 @@ import { endpoints } from '../../api/endpoints';
 import { TextField } from '../fields';
 import { Button, Card, Notice } from '../ui';
 import { colors, type } from '../../theme';
-import { Empty, Item, useSubmit } from './common';
+import { Empty, Item, useSubmit } from '../common';
 
 function markTone(state) {
   if (state === 'Checked') return colors.green;
