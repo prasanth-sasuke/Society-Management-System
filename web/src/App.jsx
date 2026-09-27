@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import ModalForm, { Toast } from "./components/Overlay.jsx";
-import { approveVoucherRequest, createRecord, fetchCatalog, fetchSession, formatApiError, loginRequest, logoutRequest, toastForCreate } from "./api.js";
+import {
+  approveVoucherRequest,
+  createRecord,
+  deleteBillRequest,
+  deleteFlatRequest,
+  fetchCatalog,
+  fetchSession,
+  formatApiError,
+  loginRequest,
+  logoutRequest,
+  moveOutResidentRequest,
+  toastForCreate,
+} from "./api.js";
 import { CREATE_MODULE, canOpenScreen, canWrite, clearToken, getToken, setToken } from "./auth.js";
 import { DEFAULT_SETTINGS, emptyForm, MODALS } from "./data.js";
 import { buildViewFromApi } from "./viewFromApi.js";
@@ -192,10 +204,10 @@ export default function App() {
     win.print();
   }
 
-  async function approveVoucher(voucher) {
+  async function runAction(action, message) {
     try {
-      const updated = await approveVoucherRequest(voucher.id);
-      setToast(`${updated.no} approved — ${updated.amount} now counts as spent.`);
+      const result = await action();
+      setToast(typeof message === "function" ? message(result) : message);
       await load(true);
     } catch (err) {
       if (err.status === 401) {
@@ -206,6 +218,63 @@ export default function App() {
       }
       setToast(formatApiError(err));
     }
+  }
+
+  function approveVoucher(voucher) {
+    runAction(() => approveVoucherRequest(voucher.id), (v) => `${v.no} approved — ${v.amount} now counts as spent.`);
+  }
+
+  const blankDash = (value) => (value && value !== "—" ? String(value) : "");
+
+  function editFlat(row) {
+    openModal("flatEdit", {
+      id: row.id,
+      flat: row.flat,
+      type: row.type,
+      carpet: blankDash(row.carpet),
+      uds: blankDash(row.uds),
+      parking: String(row.parking ?? 0),
+      status: row.status,
+    });
+  }
+
+  function deleteFlat(row) {
+    if (!window.confirm(`Delete flat ${row.flat}? This can't be undone.`)) return;
+    runAction(() => deleteFlatRequest(row.id), (r) => `Flat ${r.flat} deleted.`);
+  }
+
+  function editResident(row) {
+    openModal("residentEdit", {
+      id: row.id,
+      name: row.name,
+      flat: row.flat,
+      type: row.type,
+      family: String(parseInt(row.family, 10) || ""),
+      phone: row.phone,
+      emergency: blankDash(row.emergency),
+      since: blankDash(row.since),
+    });
+  }
+
+  function moveOutResident(row) {
+    if (!window.confirm(`Mark ${row.name} as moved out of ${row.flat}?`)) return;
+    runAction(() => moveOutResidentRequest(row.id), (r) => `${r.name} moved out of ${r.flat}.`);
+  }
+
+  function editBill(row) {
+    openModal("billEdit", {
+      id: row.id,
+      flat: row.flat,
+      period: row.period,
+      amount: String(row.maintAmount ?? ""),
+      special: row.specialAmount ? String(row.specialAmount) : "",
+      dueOn: row.dueOn,
+    });
+  }
+
+  function deleteBill(row) {
+    if (!window.confirm(`Delete the ${row.period} bill for ${row.flat}?`)) return;
+    runAction(() => deleteBillRequest(row.id), (r) => `${r.flat} bill for ${r.period} deleted.`);
   }
 
   const closeModal = useCallback(() => {
@@ -265,14 +334,30 @@ export default function App() {
   const write = (moduleName) => canWrite(permissions, moduleName);
   const screens = {
     home: <HomeScreen view={view} />,
-    blocks: <BlocksScreen view={view} onAdd={write("property") ? () => openModal("flat") : null} />,
-    residents: <ResidentsScreen view={view} onAdd={write("residents") ? () => openModal("resident") : null} />,
+    blocks: (
+      <BlocksScreen
+        view={view}
+        onAdd={write("property") ? () => openModal("flat") : null}
+        onEdit={write("property") ? editFlat : null}
+        onDelete={write("property") ? deleteFlat : null}
+      />
+    ),
+    residents: (
+      <ResidentsScreen
+        view={view}
+        onAdd={write("residents") ? () => openModal("resident") : null}
+        onEdit={write("residents") ? editResident : null}
+        onMoveOut={write("residents") ? moveOutResident : null}
+      />
+    ),
     access: <AccessScreen view={view} onAdd={write("users") ? () => openModal("user") : null} />,
     bills: (
       <BillsScreen
         view={view}
         onGenerate={write("billing") ? () => openModal("billGenerate") : null}
         onPay={write("billing") ? openPayment : null}
+        onEdit={write("billing") ? editBill : null}
+        onDelete={write("billing") ? deleteBill : null}
         onReceipt={view.receiptPreview ? () => printReceipt(view.societyName, view.receiptPreview) : null}
       />
     ),

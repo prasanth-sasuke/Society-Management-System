@@ -39,6 +39,9 @@ const CREATE_PATHS = {
   billGenerate: "/api/bills/generate",
   payment: (body) => `/api/bills/${encodeURIComponent(body.billId)}/payments`,
   voucher: "/api/vouchers",
+  flatEdit: { method: "PATCH", path: (body) => `/api/flats/${encodeURIComponent(body.id)}` },
+  residentEdit: { method: "PATCH", path: (body) => `/api/residents/${encodeURIComponent(body.id)}` },
+  billEdit: { method: "PATCH", path: (body) => `/api/bills/${encodeURIComponent(body.id)}` },
 };
 
 export class ApiError extends Error {
@@ -130,12 +133,25 @@ export async function fetchCatalog(permissions) {
 export function createRecord(kind, body) {
   const target = CREATE_PATHS[kind];
   if (!target) throw new Error(`Unknown create form: ${kind}`);
-  const path = typeof target === "function" ? target(body) : target;
-  return request(path, { method: "POST", body: JSON.stringify(body) });
+  const spec = typeof target === "object" ? target : { method: "POST", path: target };
+  const path = typeof spec.path === "function" ? spec.path(body) : spec.path;
+  return request(path, { method: spec.method, body: JSON.stringify(body) });
 }
 
 export function approveVoucherRequest(id) {
   return request(`/api/vouchers/${encodeURIComponent(id)}/approve`, { method: "POST" });
+}
+
+export function deleteFlatRequest(id) {
+  return request(`/api/flats/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function moveOutResidentRequest(id) {
+  return request(`/api/residents/${encodeURIComponent(id)}/move-out`, { method: "POST" });
+}
+
+export function deleteBillRequest(id) {
+  return request(`/api/bills/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function toastForCreate(kind, created) {
@@ -156,5 +172,8 @@ export function toastForCreate(kind, created) {
       : `${created.receiptNo} — ${created.flat} paid ${created.amount}. ${created.remaining} still due.`;
   }
   if (kind === "voucher") return `${created.no} saved — ${created.amount} (${created.state}).`;
+  if (kind === "flatEdit") return `Flat ${created.flat} updated.`;
+  if (kind === "residentEdit") return `${created.name} updated.`;
+  if (kind === "billEdit") return `${created.flat} bill for ${created.period} updated.`;
   return "Saved.";
 }

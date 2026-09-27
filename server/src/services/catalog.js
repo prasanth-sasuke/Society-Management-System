@@ -265,7 +265,7 @@ export async function listBlocks() {
     name: block.name,
     code: block.code,
     count: block.flats.length,
-    floors: [4, 3, 2, 1].map((n) => ({
+    floors: [...new Set(block.flats.map((f) => f.floor))].sort((a, b) => b - a).map((n) => ({
       n,
       flats: block.flats
         .filter((f) => f.floor === n)
@@ -346,6 +346,14 @@ export async function createResident(body) {
       phone: body.phone.trim(),
       emergencyContact: body.emergency?.trim() || null,
       residentSince: parseLooseDate(body.since),
+      moveEvents: {
+        create: {
+          flat: { connect: { id: flat.id } },
+          type: "MOVE_IN",
+          happenedOn: new Date(),
+          notes: `${body.name.trim()} moved into ${flat.code}`,
+        },
+      },
     },
     include: { flat: true },
   });
@@ -400,7 +408,9 @@ export async function listBills() {
       dueOn: row.dueOn.toISOString().slice(0, 10),
       resident: row.resident?.fullName || "—",
       maint: inr(row.maintenanceAmount),
+      maintAmount: money(row.maintenanceAmount),
       special: Number(row.specialAmount) ? inr(row.specialAmount) : "—",
+      specialAmount: money(row.specialAmount),
       prev: Number(row.previousDue) ? inr(row.previousDue) : "—",
       penalty: Number(row.penaltyAmount) ? inr(row.penaltyAmount) : "—",
       total: inr(row.totalAmount),

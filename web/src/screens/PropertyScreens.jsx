@@ -105,13 +105,21 @@ export function HomeScreen({ view }) {
   );
 }
 
-export function BlocksScreen({ view, onAdd }) {
+function RowActions({ children }) {
+  return <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>{children}</div>;
+}
+
+export function BlocksScreen({ view, onAdd, onEdit, onDelete }) {
+  const hasActions = Boolean(onEdit || onDelete);
+  const blockCount = view.blocks.length;
   return (
     <>
       <PageHead
         tag="Module 1 · Property Master"
         title="Blocks, floors & flats"
-        lead="5 blocks — A, B, C, D, E — each with 4 floors. Blocks B and C run units A–D per floor; Blocks A, D and E run wider, A–F. Colour shows occupancy and due status."
+        lead={blockCount
+          ? `${blockCount} block${blockCount === 1 ? "" : "s"}, ${view.flatRegister.length} flat${view.flatRegister.length === 1 ? "" : "s"}. Adding a flat like A-1A creates block A automatically. Colour shows occupancy and due status.`
+          : "No flats yet. Add a flat like A-1A (block A, floor 1, unit A) and the block is created automatically."}
         action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add Flat</PrimaryButton> : null}
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 22, marginTop: 30 }}>
@@ -150,12 +158,12 @@ export function BlocksScreen({ view, onAdd }) {
       <Card padding="26px 30px">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
           <SectionTitle>Flat register</SectionTitle>
-          <span style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80" }}>{view.flatRegister.length} units from PostgreSQL</span>
+          <span style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80" }}>{view.flatRegister.length} units</span>
         </div>
         <table>
           <thead>
             <tr>
-              <Th>Flat</Th><Th>Type</Th><Th>Carpet area</Th><Th>UDS</Th><Th>Parking</Th><Th>Status</Th>
+              <Th>Flat</Th><Th>Type</Th><Th>Carpet area</Th><Th>UDS</Th><Th>Parking</Th><Th>Status</Th>{hasActions ? <Th /> : null}
             </tr>
           </thead>
           <tbody>
@@ -167,8 +175,16 @@ export function BlocksScreen({ view, onAdd }) {
                 <Td>{r.uds}</Td>
                 <Td>{r.parking}</Td>
                 <Td><Pill bg={r.bg} fg={r.fg}>{r.status}</Pill></Td>
+                {hasActions ? (
+                  <Td>
+                    <RowActions>
+                      {onEdit ? <button type="button" style={rowButton} onClick={() => onEdit(r)}>Edit</button> : null}
+                      {onDelete ? <button type="button" style={dangerButton} onClick={() => onDelete(r)}>Delete</button> : null}
+                    </RowActions>
+                  </Td>
+                ) : null}
               </tr>
-            )) : <EmptyTableNote colSpan={6}>No flats loaded for this society.</EmptyTableNote>}
+            )) : <EmptyTableNote colSpan={hasActions ? 7 : 6}>No flats yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
@@ -176,7 +192,8 @@ export function BlocksScreen({ view, onAdd }) {
   );
 }
 
-export function ResidentsScreen({ view, onAdd }) {
+export function ResidentsScreen({ view, onAdd, onEdit, onMoveOut }) {
+  const hasActions = Boolean(onEdit || onMoveOut);
   const [query, setQuery] = useState("");
   const [block, setBlock] = useState("All blocks");
   const [kind, setKind] = useState("Owner + Tenant");
@@ -195,7 +212,8 @@ export function ResidentsScreen({ view, onAdd }) {
       <div style={{ display: "flex", gap: 14, margin: "28px 0 22px" }}>
         <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or flat no." style={{ border: "1px solid #e0dccf", background: "#fff", borderRadius: 9, padding: "12px 16px", font: "400 15px Lato,sans-serif", width: 250, color: "#2a2a28" }} />
         <select value={block} onChange={(e) => setBlock(e.target.value)} style={{ border: "1px solid #e0dccf", background: "#fff", borderRadius: 9, padding: "12px 14px", font: "400 15px Lato,sans-serif", color: "#2a2a28" }}>
-          <option>All blocks</option><option>Block A</option><option>Block B</option><option>Block C</option><option>Block D</option><option>Block E</option>
+          <option>All blocks</option>
+          {view.blocks.map((b) => <option key={b.code || b.name}>{b.name}</option>)}
         </select>
         <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ border: "1px solid #e0dccf", background: "#fff", borderRadius: 9, padding: "12px 14px", font: "400 15px Lato,sans-serif", color: "#2a2a28" }}>
           <option>Owner + Tenant</option><option>Owners only</option><option>Tenants only</option>
@@ -205,7 +223,7 @@ export function ResidentsScreen({ view, onAdd }) {
         <table>
           <thead>
             <tr>
-              <Th>Name</Th><Th>Flat</Th><Th>Type</Th><Th>Family</Th><Th>Contact</Th><Th>Emergency contact</Th><Th>Since</Th>
+              <Th>Name</Th><Th>Flat</Th><Th>Type</Th><Th>Family</Th><Th>Contact</Th><Th>Emergency contact</Th><Th>Since</Th>{hasActions ? <Th /> : null}
             </tr>
           </thead>
           <tbody>
@@ -218,19 +236,27 @@ export function ResidentsScreen({ view, onAdd }) {
                 <Td>{r.phone}</Td>
                 <Td muted>{r.emergency}</Td>
                 <Td>{r.since}</Td>
+                {hasActions ? (
+                  <Td>
+                    <RowActions>
+                      {onEdit ? <button type="button" style={rowButton} onClick={() => onEdit(r)}>Edit</button> : null}
+                      {onMoveOut ? <button type="button" style={dangerButton} onClick={() => onMoveOut(r)}>Move out</button> : null}
+                    </RowActions>
+                  </Td>
+                ) : null}
               </tr>
-            )) : <EmptyTableNote colSpan={7}>No residents match this search.</EmptyTableNote>}
+            )) : <EmptyTableNote colSpan={hasActions ? 8 : 7}>{view.residents.length ? "No residents match this search." : "No residents yet."}</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <SectionTitle style={{ marginBottom: 8 }}>Move-in / Move-out log</SectionTitle>
-        {view.moveLog.map((m) => (
-          <div key={m.text} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "15px 0", borderBottom: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
+        {view.moveLog.length ? view.moveLog.map((m, i) => (
+          <div key={`${m.text}-${i}`} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "15px 0", borderBottom: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
             <span>{m.text}</span>
             <span style={{ font: "700 14px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{m.date}</span>
           </div>
-        ))}
+        )) : <EmptyNote>No moves recorded yet.</EmptyNote>}
       </Card>
     </>
   );
@@ -309,7 +335,10 @@ const rowButton = {
   whiteSpace: "nowrap",
 };
 
-export function BillsScreen({ view, onGenerate, onPay, onReceipt }) {
+const dangerButton = { ...rowButton, border: "1px solid #f0cdb8", color: "#b0491a" };
+
+export function BillsScreen({ view, onGenerate, onPay, onEdit, onDelete, onReceipt }) {
+  const hasActions = Boolean(onPay || onEdit || onDelete);
   return (
     <>
       <PageHead tag="Module 4 · Maintenance Billing" title={view.billTitle} lead={view.billIntro} action={onGenerate ? <PrimaryButton onClick={onGenerate}>{view.billCta}</PrimaryButton> : null} />
@@ -338,7 +367,7 @@ export function BillsScreen({ view, onGenerate, onPay, onReceipt }) {
         <table>
           <thead>
             <tr>
-              <Th>Flat</Th><Th>Period</Th><Th>Resident</Th><Th>{view.maintColLabel}</Th><Th>Special contribution</Th><Th>Total</Th><Th>Still due</Th><Th>Status</Th>{onPay ? <Th /> : null}
+              <Th>Flat</Th><Th>Period</Th><Th>Resident</Th><Th>{view.maintColLabel}</Th><Th>Special contribution</Th><Th>Total</Th><Th>Still due</Th><Th>Status</Th>{hasActions ? <Th /> : null}
             </tr>
           </thead>
           <tbody>
@@ -352,13 +381,17 @@ export function BillsScreen({ view, onGenerate, onPay, onReceipt }) {
                 <Td mono>{b.total}</Td>
                 <Td mono style={{ fontWeight: 500 }}>{b.remaining}</Td>
                 <Td><Pill bg={b.bg} fg={b.fg}>{b.status}</Pill></Td>
-                {onPay ? (
+                {hasActions ? (
                   <Td>
-                    {b.statusCode !== "PAID" ? <button type="button" style={rowButton} onClick={() => onPay(b)}>Record payment</button> : null}
+                    <RowActions>
+                      {onPay && b.statusCode !== "PAID" ? <button type="button" style={rowButton} onClick={() => onPay(b)}>Record payment</button> : null}
+                      {onEdit && !b.paidAmount ? <button type="button" style={rowButton} onClick={() => onEdit(b)}>Edit</button> : null}
+                      {onDelete && !b.paidAmount ? <button type="button" style={dangerButton} onClick={() => onDelete(b)}>Delete</button> : null}
+                    </RowActions>
                   </Td>
                 ) : null}
               </tr>
-            )) : <EmptyTableNote colSpan={onPay ? 9 : 8}>No bills yet. Use “Generate bills” to raise them for your flats.</EmptyTableNote>}
+            )) : <EmptyTableNote colSpan={hasActions ? 9 : 8}>No bills yet. Use “Generate bills” to raise them for your flats.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>

@@ -143,6 +143,35 @@ export const MODALS = {
   },
 };
 
+const lockFlat = (f) => (f.key === "flat" ? { ...f, readOnly: true, required: false } : f);
+
+MODALS.flatEdit = {
+  title: "Edit flat",
+  kicker: MODALS.flat.kicker,
+  submit: "Save changes",
+  fields: MODALS.flat.fields.map(lockFlat),
+};
+
+MODALS.residentEdit = {
+  title: "Edit resident",
+  kicker: MODALS.resident.kicker,
+  submit: "Save changes",
+  fields: MODALS.resident.fields.map(lockFlat),
+};
+
+MODALS.billEdit = {
+  title: "Edit bill",
+  kicker: MODALS.billGenerate.kicker,
+  submit: "Save changes",
+  fields: [
+    { key: "flat", label: "Flat", readOnly: true },
+    { key: "period", label: "Billing period", required: true },
+    { key: "amount", label: "Maintenance (₹)", required: true },
+    { key: "special", label: "Special contribution (₹)" },
+    { key: "dueOn", label: "Due date", type: "date", required: true },
+  ],
+};
+
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function monthLabel(date) {

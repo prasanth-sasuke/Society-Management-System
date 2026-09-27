@@ -55,6 +55,9 @@ export const CREATE_MODULE = {
   billGenerate: "billing",
   payment: "billing",
   voucher: "finance",
+  flatEdit: "property",
+  residentEdit: "residents",
+  billEdit: "billing",
 };
 
 export function getToken() {

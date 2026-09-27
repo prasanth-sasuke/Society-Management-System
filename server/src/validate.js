@@ -102,6 +102,17 @@ export const voucherCreateSchema = z.object({
   state: z.string().trim().min(1),
 });
 
+export const flatUpdateSchema = flatCreateSchema.omit({ flat: true });
+
+export const residentUpdateSchema = residentCreateSchema.omit({ flat: true });
+
+export const billUpdateSchema = z.object({
+  period: z.string().trim().min(1).max(40),
+  amount: positiveAmount,
+  special: amount.optional().default(0),
+  dueOn: isoDate,
+});
+
 export function validate(schema) {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);
