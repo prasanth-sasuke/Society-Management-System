@@ -43,6 +43,13 @@
           "backgroundColor": "#f5f3ed"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a9da83cb-1d23-439f-9002-4947a9307549"
+      }
+    },
+    "owner": "lakshmiprasanth"
   }
 }
