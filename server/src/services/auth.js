@@ -32,12 +32,15 @@ export function sessionPayload(user) {
   };
 }
 
+// Compared against when the email is unknown, so both cases take the same time.
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 12);
+
 export async function login(email, password) {
   const user = await prisma.user.findUnique({
     where: { email: String(email || "").trim().toLowerCase() },
     include: LINKS,
   });
-  const ok = user ? await bcrypt.compare(password, user.passwordHash) : false;
+  const ok = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH) && Boolean(user);
   if (!user || !user.active || !ok) {
     throw new AppError(401, "Invalid email or password.");
   }

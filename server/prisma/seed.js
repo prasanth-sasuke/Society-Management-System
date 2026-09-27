@@ -10,6 +10,15 @@ async function main() {
     throw new Error("Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in .env (never commit them).");
   }
 
+  // The seed wipes every table. Refuse on a database that is already in use unless asked explicitly.
+  const existing = await prisma.society.count();
+  if (existing && process.env.SEED_RESET !== "yes") {
+    throw new Error(
+      "This database already has a society. Seeding would ERASE ALL DATA (flats, bills, logins…).\n" +
+      "If you really want a fresh start, back up first, then run with SEED_RESET=yes.",
+    );
+  }
+
   await prisma.$transaction([
     prisma.user.deleteMany(),
     prisma.booking.deleteMany(),

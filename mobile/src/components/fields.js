@@ -73,8 +73,8 @@ export function nowHhmm(date = new Date()) {
 // Value is "HH:MM" or "" when optional and not set.
 export function TimeField({ label, value, onChange, optional }) {
   const [iosOpen, setIosOpen] = useState(false);
+  // The iOS spinner fires on every wheel tick, so it stays open until Done.
   const pick = (event, date) => {
-    if (Platform.OS !== 'android') setIosOpen(false);
     if (event.type === 'set' && date) onChange(nowHhmm(date));
   };
   const open = () => {
@@ -100,7 +100,14 @@ export function TimeField({ label, value, onChange, optional }) {
           </Pressable>
         ) : null}
       </View>
-      {iosOpen ? <DateTimePicker value={fromHhmm(value)} mode="time" display="spinner" onChange={pick} /> : null}
+      {iosOpen ? (
+        <View>
+          <DateTimePicker value={fromHhmm(value)} mode="time" display="spinner" onChange={pick} />
+          <Pressable onPress={() => setIosOpen(false)} style={[styles.smallButton, { alignSelf: 'flex-end', paddingVertical: 8 }]}>
+            <Text style={styles.chipText}>Done</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

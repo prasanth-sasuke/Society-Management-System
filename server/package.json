@@ -14,7 +14,8 @@
     "prisma:verify": "node --env-file=.env scripts/verify-crud.js",
     "verify:api": "node --env-file=.env scripts/verify-api.js",
     "migrate:cloud": "node scripts/migrate-to-cloud.js",
-    "verify:cloud": "node scripts/verify-cloud.js"
+    "verify:cloud": "node scripts/verify-cloud.js",
+    "backup:cloud": "node scripts/backup-cloud.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

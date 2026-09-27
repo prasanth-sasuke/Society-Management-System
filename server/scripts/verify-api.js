@@ -1,133 +1,70 @@
-const BASE = process.env.API_URL || "http://127.0.0.1:3001/api";
-const PASSWORD = process.env.DEMO_PASSWORD || "Demo@1234";
+// Smoke test for a running API. Works on an empty database: signs in as the superadmin,
+// creates temporary logins for a few roles, checks what each role may do, then deletes them.
+// Usage (server running locally):  npm run verify:api
+import { randomBytes } from "node:crypto";
 
-async function request(path, { method = "GET", token, body, expect } = {}) {
+const BASE = (process.env.API_URL || "http://127.0.0.1:3001/api").replace(/\/$/, "");
+const { SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD } = process.env;
+if (!SUPERADMIN_EMAIL || !SUPERADMIN_PASSWORD) {
+  throw new Error("Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD (they are read from .env by `npm run verify:api`).");
+}
+
+async function request(path, { method = "GET", token, body, raw, expect } = {}) {
   const headers = {};
-  if (body) headers["Content-Type"] = "application/json";
+  if (body !== undefined || raw !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const response = await fetch(`${BASE}${path}`, { method, headers, body: raw ?? (body !== undefined ? JSON.stringify(body) : undefined) });
   const text = await response.text();
   let data = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { error: text };
-    }
-  }
+  try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
   if (expect && response.status !== expect) {
-    throw new Error(`${method} ${path} expected ${expect}, got ${response.status} ${text}`);
+    throw new Error(`${method} ${path} expected ${expect}, got ${response.status} ${text.slice(0, 200)}`);
   }
   return { status: response.status, data };
 }
 
-async function login(email) {
-  const { data } = await request("/auth/login", {
-    method: "POST",
-    body: { email, password: PASSWORD },
-    expect: 200,
-  });
-  if (!data.token) throw new Error(`No token for ${email}`);
-  return data.token;
-}
+const login = async (email, password) => (await request("/auth/login", { method: "POST", body: { email, password }, expect: 200 })).data.token;
 
 async function main() {
-  await request("/health", { expect: 200 });
+  const health = await request("/health", { expect: 200 });
+  if (health.data.db !== "up") throw new Error("API is up but the database is down.");
   await request("/flats", { expect: 401 });
-  await request("/auth/login", { method: "POST", body: { email: "admin@greenfield.local", password: "nope" }, expect: 401 });
+  await request("/auth/login", { method: "POST", body: { email: SUPERADMIN_EMAIL, password: "definitely-wrong" }, expect: 401 });
 
-  const admin = await login("admin@greenfield.local");
-  const security = await login("security@greenfield.local");
-  const ec = await login("ec@greenfield.local");
-  const resident = await login("resident@greenfield.local");
-
-  const badJson = await fetch(`${BASE}/flats`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${admin}` },
-    body: "{",
-  });
-  if (badJson.status !== 400) throw new Error(`Invalid JSON expected 400, got ${badJson.status}`);
-
+  const admin = await login(SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
   await request("/auth/me", { token: admin, expect: 200 });
-  const flats = await request("/flats", { token: admin, expect: 200 });
-  if (!Array.isArray(flats.data) || flats.data.length !== 104) {
-    throw new Error(`Expected 104 flats, got ${flats.data?.length}`);
-  }
+  await request("/flats", { method: "POST", token: admin, raw: "{", expect: 400 });
+  await request("/flats", { method: "POST", token: admin, body: { flat: "not a flat", type: "2BHK", status: "Vacant" }, expect: 400 });
 
-  await request("/flats", { token: security, expect: 403 });
-  await request("/finance", { token: security, expect: 403 });
-  await request("/security", { token: security, expect: 200 });
-  await request("/access", { token: security, expect: 403 });
-  await request("/flats", {
-    method: "POST",
-    token: ec,
-    body: { flat: "A-9A", type: "2BHK", status: "Vacant" },
-    expect: 403,
-  });
-
-  await request("/flats", {
-    method: "POST",
-    token: admin,
-    body: { flat: "Z-1A", type: "2BHK", status: "Vacant" },
-    expect: 400,
-  });
-  await request("/residents", {
-    method: "POST",
-    token: admin,
-    body: { name: "Ghost", flat: "A-9Z", type: "Owner", phone: "1" },
-    expect: 400,
-  });
-  await request("/tickets", {
-    method: "POST",
-    token: resident,
-    body: { flat: "A-1A", category: "Plumbing", text: "", priority: "Low", owner: "x" },
-    expect: 400,
-  });
-
-  const created = await request("/flats", {
-    method: "POST",
-    token: admin,
-    body: { flat: "A-9A", type: "2BHK", carpet: "980 sq.ft", uds: "330", parking: "1", status: "Vacant" },
-    expect: 201,
-  });
-  await request("/flats", {
-    method: "POST",
-    token: admin,
-    body: { flat: "A-9A", type: "2BHK", status: "Vacant" },
-    expect: 409,
-  });
-  await request("/tickets", {
-    method: "POST",
-    token: resident,
-    body: { flat: "A-1A", category: "Plumbing", text: "Phase 7 resident ticket", priority: "Low", owner: "Manager" },
-    expect: 201,
-  });
-
-  const { PrismaClient } = await import("@prisma/client");
-  const prisma = new PrismaClient();
+  const suffix = randomBytes(4).toString("hex");
+  const created = [];
+  const tokens = {};
   try {
-    if (created.data?.id) {
-      await prisma.flat.delete({ where: { id: created.data.id } }).catch(() => {});
+    for (const role of ["SECURITY", "EC", "ACCOUNTANT"]) {
+      const email = `verify-${role.toLowerCase()}-${suffix}@test.local`;
+      const password = randomBytes(12).toString("base64url");
+      const { data } = await request("/users", { method: "POST", token: admin, body: { name: `Verify ${role}`, email, password, role }, expect: 201 });
+      created.push(data.id);
+      tokens[role] = await login(email, password);
     }
-    await prisma.ticket.deleteMany({ where: { description: "Phase 7 resident ticket" } });
+
+    await request("/security", { token: tokens.SECURITY, expect: 200 });
+    await request("/finance", { token: tokens.SECURITY, expect: 403 });
+    await request("/access", { token: tokens.SECURITY, expect: 403 });
+    await request("/flats", { method: "POST", token: tokens.EC, body: { flat: "A-1A", type: "2BHK", status: "Vacant" }, expect: 403 });
+    await request("/finance", { token: tokens.EC, expect: 200 });
+    await request("/finance", { token: tokens.ACCOUNTANT, expect: 200 });
+    await request("/staff", { token: tokens.ACCOUNTANT, expect: 403 });
+    const dash = await request("/dashboard", { token: tokens.SECURITY, expect: 200 });
+    if (dash.data.money) throw new Error("Security role should not see money figures on the dashboard.");
   } finally {
-    await prisma.$disconnect();
+    for (const id of created) await request(`/users/${id}`, { method: "DELETE", token: admin }).catch(() => {});
   }
 
-  const after = await request("/flats", { token: admin, expect: 200 });
-  if (after.data.length !== 104) throw new Error(`Cleanup left ${after.data.length} flats`);
-
-  console.log("verify_api_ok", {
-    flats: after.data.length,
-    rolesChecked: ["ADMIN", "SECURITY", "EC", "RESIDENT"],
-  });
+  console.log("verify_api_ok", { api: BASE, rolesChecked: ["SUPERADMIN", "SECURITY", "EC", "ACCOUNTANT"], tempLoginsRemoved: created.length });
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error.message || error);
   process.exitCode = 1;
 });

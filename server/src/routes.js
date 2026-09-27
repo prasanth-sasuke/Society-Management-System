@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "./prisma.js";
 import { asyncHandler } from "./http.js";
 import { requireAuth, requirePermission } from "./auth/middleware.js";
+import { assertLoginAllowed, recordLoginFailure, recordLoginSuccess } from "./auth/loginLimiter.js";
 import {
   assetCreateSchema,
   assetUpdateSchema,
@@ -71,7 +72,16 @@ api.get("/health", asyncHandler(async (_req, res) => {
 }));
 
 api.post("/auth/login", validate(loginSchema), asyncHandler(async (req, res) => {
-  res.json(await auth.login(req.body.email, req.body.password));
+  const { email, password } = req.body;
+  assertLoginAllowed(req.ip, email);
+  try {
+    const session = await auth.login(email, password);
+    recordLoginSuccess(req.ip, email);
+    res.json(session);
+  } catch (err) {
+    if (err?.status === 401) recordLoginFailure(req.ip, email);
+    throw err;
+  }
 }));
 
 api.get("/auth/me", requireAuth, asyncHandler(async (req, res) => {

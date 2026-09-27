@@ -47,6 +47,31 @@ export function errorHandler(err, req, res, _next) {
   return res.status(500).json({ error: "Internal server error" });
 }
 
+export function securityHeaders(production) {
+  return (_req, res, next) => {
+    res.set({
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+      ...(production ? { "Strict-Transport-Security": "max-age=15552000; includeSubDomains" } : {}),
+    });
+    next();
+  };
+}
+
+// One line per API request (no bodies, tokens or query strings). Health checks are skipped.
+export function requestLogger(req, res, next) {
+  const { method, path } = req;
+  if (!path.startsWith("/api") || path === "/api/health") return next();
+  const started = process.hrtime.bigint();
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - started) / 1e6;
+    console.log(`${method} ${path} ${res.statusCode} ${ms.toFixed(0)}ms`);
+  });
+  next();
+}
+
 export function notFound(_req, res) {
   res.status(404).json({ error: "Not found" });
 }

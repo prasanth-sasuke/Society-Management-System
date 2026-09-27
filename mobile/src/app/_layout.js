@@ -2,6 +2,9 @@ import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SessionProvider, useSession } from '../auth/AuthContext';
 
+// Expo Router's error screen (message + Retry) instead of a crash if a screen throws while rendering.
+export { ErrorBoundary } from 'expo-router';
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
