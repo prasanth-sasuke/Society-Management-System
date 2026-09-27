@@ -71,6 +71,8 @@ const CREATE_PATHS = {
   amcEdit: patchTo("/api/amc"),
   breakdown: "/api/breakdowns",
   breakdownEdit: patchTo("/api/breakdowns"),
+  billingRules: { method: "PATCH", path: "/api/society" },
+  societyName: { method: "PATCH", path: "/api/society" },
 };
 
 function patchTo(base) {
@@ -211,6 +213,14 @@ export function saveAttendance(date, entries) {
   return request("/api/staff-attendance", { method: "PUT", body: JSON.stringify({ date, entries }) });
 }
 
+export function fetchPublicSociety() {
+  return request("/api/public/society");
+}
+
+export function waivePenaltyRequest(id) {
+  return request(`/api/bills/${encodeURIComponent(id)}/waive-penalty`, { method: "POST" });
+}
+
 export function payInvoiceRequest(id) {
   return request(`/api/invoices/${encodeURIComponent(id)}/pay`, { method: "POST" });
 }
@@ -277,5 +287,10 @@ export function toastForCreate(kind, created) {
   if (kind === "amcEdit") return `${created.equip} AMC updated — next service ${created.next}.`;
   if (kind === "breakdown") return `Breakdown logged: ${created.what}.`;
   if (kind === "breakdownEdit") return `Breakdown updated: ${created.what}.`;
+  if (kind === "billingRules") {
+    const fee = created.penaltyPerDay ? `late fee ₹${created.penaltyPerDay}/day` : "no late fee";
+    return `Billing rules saved — ${created.billingFrequency.toLowerCase()}, ${fee}.`;
+  }
+  if (kind === "societyName") return `Society renamed to ${created.name}.`;
   return "Saved.";
 }

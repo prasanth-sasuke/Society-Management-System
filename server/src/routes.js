@@ -37,6 +37,7 @@ import {
   invoiceSchema,
   amcSchema,
   breakdownSchema,
+  societySchema,
 } from "./validate.js";
 import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
@@ -88,8 +89,16 @@ api.post("/users", requireAuth, requirePermission("users", "write"), validate(us
   res.status(201).json(await auth.createUser(req.body));
 }));
 
+api.get("/public/society", asyncHandler(async (_req, res) => {
+  res.json(await catalog.getPublicSociety());
+}));
+
 api.get("/society", requireAuth, asyncHandler(async (_req, res) => {
   res.json(await catalog.getSocietyPayload());
+}));
+
+api.patch("/society", requireAuth, validate(societySchema), asyncHandler(async (req, res) => {
+  res.json(await catalog.updateSociety(req.body, req.user.permissions));
 }));
 
 api.get("/dashboard", requireAuth, asyncHandler(async (req, res) => {
@@ -154,6 +163,10 @@ api.delete("/bills/:id", requireAuth, requirePermission("billing", "write"), asy
 
 api.post("/bills/:id/payments", requireAuth, requirePermission("billing", "write"), validate(paymentCreateSchema), asyncHandler(async (req, res) => {
   res.status(201).json(await billing.recordPayment(req.params.id, req.body));
+}));
+
+api.post("/bills/:id/waive-penalty", ...authWrite("billing", null, async (req, res) => {
+  res.json(await billing.waivePenalty(req.params.id));
 }));
 
 api.get("/finance", ...authRead("finance", async (_req, res) => {

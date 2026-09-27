@@ -399,6 +399,23 @@ MODALS.breakdown = {
 };
 withEdit("breakdown", "Edit breakdown");
 
+MODALS.billingRules = {
+  title: "Billing rules",
+  kicker: "Module 4 · Maintenance Billing",
+  submit: "Save rules",
+  fields: [
+    { key: "billingFrequency", label: "Billing frequency", options: ["Quarterly, in advance", "Monthly"] },
+    { key: "penaltyPerDay", label: "Late fee per day (₹, 0 for none)", placeholder: "15", required: true },
+  ],
+};
+
+MODALS.societyName = {
+  title: "Rename society",
+  kicker: "Module 1 · Property Master",
+  submit: "Save name",
+  fields: [{ key: "name", label: "Society name", placeholder: "Greenfield Residency", required: true }],
+};
+
 function localStamp(date) {
   return `${isoDay(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
@@ -420,7 +437,7 @@ function isoDay(date) {
 }
 
 export const DEFAULT_SETTINGS = {
-  societyName: "Greenfield Residency",
+  societyName: "My Society",
   penaltyPerDay: 15,
   billingFrequency: "Quarterly, in advance",
 };
@@ -484,9 +501,9 @@ export function buildView(settings = DEFAULT_SETTINGS) {
     penalty,
     quarterly,
     billTitle: quarterly ? "Quarterly maintenance & dues" : "Monthly maintenance & dues",
-    billIntro: quarterly
-      ? "Billed in advance for the quarter, on the 1st month: Jan bill covers Jan–Mar, Apr covers Apr–Jun, Jul covers Jul–Sep, Oct covers Oct–Dec. Due by the 15th of the billing month; penalty accrues per day after that."
-      : "Billed in advance on the 1st of every month and due by the 15th; penalty accrues per day after that.",
+    billIntro: `${quarterly
+      ? "Billed in advance for the quarter, on the 1st month: Jan bill covers Jan–Mar, Apr covers Apr–Jun, Jul covers Jul–Sep, Oct covers Oct–Dec."
+      : "Billed in advance on the 1st of every month."} You pick the due date when generating bills${penalty ? `; a late fee of ₹${penalty} per day is added to unpaid bills after that` : ""}.`,
     billCta: quarterly ? "Generate Q3 (Jul–Sep) Bills" : "Generate August Bills",
     freqLabel: quarterly ? "Quarterly, in advance" : "Monthly, in advance",
     raisedOn: quarterly ? "1st of Jan / Apr / Jul / Oct" : "1st of every month",

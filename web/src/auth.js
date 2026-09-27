@@ -87,6 +87,8 @@ export const CREATE_MODULE = {
   amcEdit: "vendors",
   breakdown: "vendors",
   breakdownEdit: "vendors",
+  billingRules: "billing",
+  societyName: "property",
 };
 
 export function getToken() {

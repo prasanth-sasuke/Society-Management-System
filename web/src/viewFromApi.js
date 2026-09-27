@@ -401,6 +401,12 @@ export function buildViewFromApi(catalog, permissions = {}) {
     breakdowns: catalog.breakdowns || [],
     facilities: (catalog.facilities || []).map((row) => ({ ...row, ...tone(facilityTone(row.state)) })),
     bookings,
+    reportDate: formatDay(new Date().toLocaleDateString("en-CA")),
+    canSee: {
+      bills: canRead(permissions, "billing"),
+      complaints: canRead(permissions, "helpdesk"),
+      invoices: canRead(permissions, "vendors"),
+    },
     reportKpis: [
       {
         label: "Collection %",

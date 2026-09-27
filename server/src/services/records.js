@@ -111,13 +111,15 @@ export async function updateBill(id, { period, amount, special, dueOn }) {
   });
   if (clash) throw new AppError(409, `${bill.flat.code} already has a bill for ${period}.`);
 
-  const total = Math.round((amount + special + Number(bill.previousDue) + Number(bill.penaltyAmount)) * 100) / 100;
+  const total = Math.round((amount + special + Number(bill.previousDue)) * 100) / 100;
   await prisma.bill.update({
     where: { id },
     data: {
       periodLabel: period,
       maintenanceAmount: amount,
       specialAmount: special,
+      penaltyAmount: 0,
+      overdueDays: 0,
       totalAmount: total,
       dueOn: new Date(`${dueOn}T00:00:00.000Z`),
     },

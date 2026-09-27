@@ -7,6 +7,7 @@ import {
   deleteRecord,
   fetchAttendance,
   fetchCatalog,
+  fetchPublicSociety,
   fetchSession,
   formatApiError,
   loginRequest,
@@ -17,7 +18,9 @@ import {
   resetPatrolRequest,
   saveAttendance,
   toastForCreate,
+  waivePenaltyRequest,
 } from "./api.js";
+import { printCommitteePack, printReceipt } from "./print.js";
 import { CREATE_MODULE, canOpenScreen, canWrite, clearToken, getToken, setToken } from "./auth.js";
 import { DEFAULT_SETTINGS, emptyForm, MODALS, resolveModal } from "./data.js";
 import { buildViewFromApi } from "./viewFromApi.js";
@@ -55,6 +58,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [publicName, setPublicName] = useState(null);
 
   const permissions = session?.permissions || {};
   const permissionsRef = useRef(permissions);
@@ -120,6 +124,19 @@ export default function App() {
   }, [authState, session, load]);
 
   useEffect(() => {
+    if (authState !== "guest") return undefined;
+    let cancelled = false;
+    fetchPublicSociety()
+      .then((data) => {
+        if (!cancelled && data?.name) setPublicName(data.name);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [authState]);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const id = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(id);
@@ -182,28 +199,13 @@ export default function App() {
     });
   }
 
-  function printReceipt(societyName, receipt) {
-    const win = window.open("", "_blank", "width=640,height=720");
-    if (!win) {
-      setToast("Allow pop-ups for this site to print the receipt.");
-      return;
-    }
-    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    win.document.write(`<!doctype html><html><head><title>${esc(receipt.receiptNo)}</title>
-<style>body{font:15px/1.6 Georgia,serif;color:#2a2a28;padding:40px;max-width:520px;margin:auto}h1{font-size:22px;margin:0 0 4px}.muted{color:#6f6f68}.row{display:flex;justify-content:space-between;border-top:1px solid #e8e4d9;padding:10px 0}.total{font-weight:700;font-size:18px}</style>
-</head><body>
-<h1>${esc(societyName)}</h1><div class="muted">Maintenance receipt</div><br>
-<div class="row"><span>Receipt no.</span><span>${esc(receipt.receiptNo)}</span></div>
-<div class="row"><span>Date</span><span>${esc(receipt.paidOn)}</span></div>
-<div class="row"><span>Flat</span><span>${esc(receipt.flat)}</span></div>
-<div class="row"><span>Resident</span><span>${esc(receipt.resident)}</span></div>
-<div class="row"><span>Billing period</span><span>${esc(receipt.period)}</span></div>
-<div class="row"><span>Paid via</span><span>${esc(receipt.mode)}</span></div>
-<div class="row total"><span>Amount paid</span><span>${esc(receipt.amount)}</span></div>
-</body></html>`);
-    win.document.close();
-    win.focus();
-    win.print();
+  function printOrWarn(print, what) {
+    if (!print()) setToast(`Allow pop-ups for this site to print the ${what}.`);
+  }
+
+  function waivePenalty(bill) {
+    if (!window.confirm(`Waive the ${bill.penalty} late fee on the ${bill.period} bill for ${bill.flat}? Late fee keeps adding from tomorrow if the bill stays unpaid.`)) return;
+    runAction(() => waivePenaltyRequest(bill.id), (r) => `${r.waived} late fee waived for ${r.flat} (${r.period}).${r.cleared ? " Bill is now fully paid." : ""}`);
   }
 
   async function runAction(action, message) {
@@ -518,7 +520,7 @@ export default function App() {
   if (authState === "guest") {
     return (
       <LoginScreen
-        societyName={DEFAULT_SETTINGS.societyName}
+        societyName={publicName || DEFAULT_SETTINGS.societyName}
         error={loginError}
         submitting={loginSubmitting}
         onSubmit={handleLogin}
@@ -543,6 +545,7 @@ export default function App() {
         onAdd={write("property") ? () => openModal("flat") : null}
         onEdit={write("property") ? editFlat : null}
         onDelete={write("property") ? deleteFlat : null}
+        onRename={write("property") ? () => openModal("societyName", { name: view.societyName }) : null}
       />
     ),
     residents: (
@@ -561,7 +564,12 @@ export default function App() {
         onPay={write("billing") ? openPayment : null}
         onEdit={write("billing") ? editBill : null}
         onDelete={write("billing") ? deleteBill : null}
-        onReceipt={view.receiptPreview ? () => printReceipt(view.societyName, view.receiptPreview) : null}
+        onWaive={write("billing") ? waivePenalty : null}
+        onReceipt={view.receiptPreview ? () => printOrWarn(() => printReceipt(view.societyName, view.receiptPreview), "receipt") : null}
+        onEditRules={write("billing") ? () => openModal("billingRules", {
+          billingFrequency: view.quarterly ? "Quarterly, in advance" : "Monthly",
+          penaltyPerDay: String(view.penalty ?? 0),
+        }) : null}
       />
     ),
     accounts: (
@@ -611,7 +619,7 @@ export default function App() {
         onDelete={write("facility") ? cancelBooking : null}
       />
     ),
-    reports: <ReportsScreen view={view} onExport={write("reports") ? () => setToast("Committee pack for Aug 2026 queued for export.") : null} />,
+    reports: <ReportsScreen view={view} onExport={() => printOrWarn(() => printCommitteePack(view), "committee pack")} />,
   };
 
   return (

@@ -1,7 +1,59 @@
 import { prisma } from "../prisma.js";
 import { AppError } from "../http.js";
-import { VOUCHER_STATUS, fromLabel, inr } from "../labels.js";
+import { VOUCHER_STATUS, fromLabel, inr, societyNow } from "../labels.js";
 import { getSociety } from "./society.js";
+
+// Adds only the days not yet charged, so a rate change never re-prices days already billed.
+export async function accruePenalties(db = prisma) {
+  const society = await getSociety();
+  const today = societyNow().iso;
+  const rate = society.penaltyPerDay;
+  return db.$executeRaw`
+    UPDATE bills
+    SET penalty_amount = penalty_amount + ((${today}::date - due_on) - overdue_days) * ${rate}::int,
+        total_amount = maintenance_amount + special_amount + previous_due + penalty_amount
+          + ((${today}::date - due_on) - overdue_days) * ${rate}::int,
+        overdue_days = ${today}::date - due_on,
+        updated_at = NOW()
+    WHERE status <> 'PAID'
+      AND due_on < ${today}::date
+      AND overdue_days < ${today}::date - due_on`;
+}
+
+export async function waivePenalty(billId) {
+  return prisma.$transaction(async (tx) => {
+    await accruePenalties(tx);
+    const bill = await tx.bill.findUnique({ where: { id: billId }, include: { flat: true } });
+    if (!bill) throw new AppError(404, "Bill not found.");
+    if (bill.status === "PAID") throw new AppError(409, "This bill is already fully paid.");
+
+    const penalty = Number(bill.penaltyAmount);
+    if (!penalty) throw new AppError(409, "This bill has no late fee to waive.");
+    const base = round2(Number(bill.maintenanceAmount) + Number(bill.specialAmount) + Number(bill.previousDue));
+    const paid = Number(bill.paidAmount);
+    const keptPenalty = Math.min(penalty, Math.max(0, round2(paid - base)));
+    const waived = round2(penalty - keptPenalty);
+    if (!waived) throw new AppError(409, "The late fee on this bill has already been paid.");
+
+    const total = round2(base + keptPenalty);
+    const cleared = paid >= total;
+    const updated = await tx.bill.updateMany({
+      where: { id: billId, penaltyAmount: bill.penaltyAmount, status: { not: "PAID" } },
+      data: {
+        penaltyAmount: keptPenalty,
+        totalAmount: total,
+        ...(cleared ? { status: "PAID", overdueDays: 0 } : {}),
+      },
+    });
+    if (!updated.count) throw new AppError(409, "This bill was just updated by someone else. Refresh and try again.");
+
+    if (cleared) {
+      const stillOpen = await tx.bill.count({ where: { flatId: bill.flatId, status: { not: "PAID" } } });
+      await tx.flat.update({ where: { id: bill.flatId }, data: { duesPending: stillOpen > 0 } });
+    }
+    return { flat: bill.flat.code, period: bill.periodLabel, waived: inr(waived), cleared };
+  });
+}
 
 function utcDate(iso) {
   return new Date(`${iso}T00:00:00.000Z`);
@@ -72,6 +124,7 @@ export async function generateBills({ period, amount, special, dueOn, scope }) {
 
 export async function recordPayment(billId, { amount, mode, paidOn }) {
   return prisma.$transaction(async (tx) => {
+    await accruePenalties(tx);
     const bill = await tx.bill.findUnique({ where: { id: billId }, include: { flat: true } });
     if (!bill) throw new AppError(404, "Bill not found.");
 

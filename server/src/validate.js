@@ -243,6 +243,25 @@ export const breakdownSchema = z.object({
   note: optionalText(500),
 });
 
+const penaltyPerDay = z
+  .union([z.string(), z.number()])
+  .optional()
+  .transform((v) => (v === undefined || v === "" ? undefined : Number(String(v).replace(/[₹,\s]/g, ""))))
+  .pipe(z
+    .number({ message: "Penalty must be a whole number of rupees" })
+    .int("Penalty must be a whole number of rupees")
+    .min(0, "Penalty can't be negative")
+    .max(10000, "Penalty can be at most ₹10,000 a day")
+    .optional());
+
+export const societySchema = z
+  .object({
+    name: z.string().trim().min(1, "Society name is required").max(80).optional(),
+    penaltyPerDay,
+    billingFrequency: z.string().trim().min(1).optional(),
+  })
+  .refine((body) => Object.values(body).some((v) => v !== undefined), { message: "Nothing to update" });
+
 export function validate(schema) {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);

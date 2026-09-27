@@ -283,7 +283,7 @@ export function FacilityScreen({ view, onAdd, onEdit, onDelete }) {
 export function ReportsScreen({ view, onExport }) {
   return (
     <>
-      <PageHead tag="Module 14 · Reports & Dashboard" title="Reports" lead="Committee pack for August 2026 — collection, dues ageing, expense split, complaints and occupancy." action={onExport ? <SecondaryButton onClick={onExport}>Export pack (PDF)</SecondaryButton> : null} />
+      <PageHead tag="Module 14 · Reports & Dashboard" title="Reports" lead={`Committee pack as of ${view.reportDate} — collection, dues ageing, expense split, complaints and occupancy.`} action={onExport ? <SecondaryButton onClick={onExport}>Export pack (PDF)</SecondaryButton> : null} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22, marginTop: 30 }}>
         {view.reportKpis.map((k) => <KpiCard key={k.label} compact {...k} />)}
       </div>
@@ -300,7 +300,7 @@ export function ReportsScreen({ view, onExport }) {
           )) : <EmptyNote>No outstanding dues.</EmptyNote>}
         </Card>
         <Card>
-          <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Expense split — August</h2>
+          <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 18px" }}>Expense split — approved vouchers</h2>
           {view.expenseSplit.length ? view.expenseSplit.map((e) => (
             <div key={e.head} style={{ padding: "13px 0", borderTop: "1px solid #efece3" }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif", marginBottom: 9 }}>

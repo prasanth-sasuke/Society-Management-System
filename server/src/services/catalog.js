@@ -24,15 +24,47 @@ import {
   societyNow,
 } from "../labels.js";
 import { getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
+import { accruePenalties } from "./billing.js";
+import { canWrite } from "../auth/permissions.js";
 
-export async function getSocietyPayload() {
-  const society = await getSociety();
+const BILLING_FREQUENCY = { QUARTERLY: "Quarterly, in advance", MONTHLY: "Monthly" };
+
+function serializeSociety(society) {
   return {
     id: society.id,
     name: society.name,
     penaltyPerDay: society.penaltyPerDay,
-    billingFrequency: society.billingFrequency === "MONTHLY" ? "Monthly" : "Quarterly, in advance",
+    billingFrequency: BILLING_FREQUENCY[society.billingFrequency],
   };
+}
+
+export async function getSocietyPayload() {
+  return serializeSociety(await getSociety());
+}
+
+export async function updateSociety({ name, penaltyPerDay, billingFrequency }, permissions) {
+  const society = await getSociety();
+  const data = {};
+  if (name !== undefined && name !== society.name) {
+    if (!canWrite(permissions, "property")) throw new AppError(403, "Only users who manage the property master can rename the society.");
+    data.name = name;
+  }
+  if (penaltyPerDay !== undefined || billingFrequency !== undefined) {
+    if (!canWrite(permissions, "billing")) throw new AppError(403, "Only users who manage billing can change billing rules.");
+    if (penaltyPerDay !== undefined && penaltyPerDay !== society.penaltyPerDay) {
+      // Charge days already past at the old rate before the new rate takes over.
+      await accruePenalties();
+      data.penaltyPerDay = penaltyPerDay;
+    }
+    if (billingFrequency !== undefined) data.billingFrequency = fromLabel(BILLING_FREQUENCY, billingFrequency, "billing frequency");
+  }
+  if (!Object.keys(data).length) return serializeSociety(society);
+  return serializeSociety(await prisma.society.update({ where: { id: society.id }, data }));
+}
+
+export async function getPublicSociety() {
+  const society = await prisma.society.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true } });
+  return { name: society?.name || null };
 }
 
 function asNumber(value) {
@@ -69,6 +101,7 @@ function ageingBucket(days) {
 }
 
 export async function getDashboard() {
+  await accruePenalties();
   const society = await getSociety();
   const trendMonths = lastSixMonths();
   const trendStart = new Date(`${trendMonths[0].key}-01T00:00:00.000Z`);
@@ -106,7 +139,7 @@ export async function getDashboard() {
     prisma.bill.count({
       where: {
         status: { not: "PAID" },
-        dueOn: { lt: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) },
+        dueOn: { lt: societyNow().date },
       },
     }),
     prisma.bill.aggregate({ _sum: { paidAmount: true, totalAmount: true } }),
@@ -383,7 +416,8 @@ function daysOverdue(row, today) {
 }
 
 export async function listBills() {
-  const today = new Date();
+  await accruePenalties();
+  const today = societyNow().date;
   const rows = await prisma.bill.findMany({
     include: {
       flat: { include: { block: true } },
@@ -415,6 +449,7 @@ export async function listBills() {
       specialAmount: money(row.specialAmount),
       prev: Number(row.previousDue) ? inr(row.previousDue) : "—",
       penalty: Number(row.penaltyAmount) ? inr(row.penaltyAmount) : "—",
+      penaltyAmount: money(row.penaltyAmount),
       total: inr(row.totalAmount),
       totalAmount: money(row.totalAmount),
       paidAmount: money(row.paidAmount),
