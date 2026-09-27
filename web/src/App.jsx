@@ -144,9 +144,9 @@ export default function App() {
 
   const view = useMemo(
     () => (catalog
-      ? buildViewFromApi(catalog, permissions)
+      ? buildViewFromApi(catalog, permissions, session?.scope)
       : { societyName: DEFAULT_SETTINGS.societyName, syncOk: false, homeKpis: [], homeComplaints: [], homeStaff: [], homeEvents: [], attention: [], chart: [] }),
-    [catalog, permissions],
+    [catalog, permissions, session?.scope],
   );
 
   async function handleLogin(event) {
@@ -367,6 +367,21 @@ export default function App() {
     runAction(() => deleteRecord("bank", row.id), (r) => `${r.name} removed.`);
   }
 
+  function editLogin(row) {
+    if (row.role === "SUPERADMIN") {
+      openModal("superadminEdit", { id: row.id, email: row.email, name: row.fullName, role: row.roleLabel });
+      return;
+    }
+    openModal("userEdit", {
+      id: row.id,
+      email: row.email,
+      name: row.fullName,
+      role: row.roleLabel,
+      flat: row.flat,
+      vendor: row.vendorId,
+    });
+  }
+
   function removeRecord(kind, id, question, done) {
     if (!window.confirm(question)) return;
     runAction(() => deleteRecord(kind, id), done);
@@ -556,7 +571,16 @@ export default function App() {
         onMoveOut={write("residents") ? moveOutResident : null}
       />
     ),
-    access: <AccessScreen view={view} onAdd={write("users") ? () => openModal("user") : null} />,
+    access: (
+      <AccessScreen
+        view={view}
+        onAdd={write("users") ? () => openModal("user") : null}
+        onEdit={write("users") ? editLogin : null}
+        onRemove={write("users")
+          ? (row) => removeRecord("user", row.id, `Remove the login for ${row.email}? They won't be able to sign in any more.`, (r) => `Login removed: ${r.email}.`)
+          : null}
+      />
+    ),
     bills: (
       <BillsScreen
         view={view}

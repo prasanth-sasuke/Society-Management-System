@@ -105,6 +105,8 @@ export const MODALS = {
       { key: "email", label: "Email", placeholder: "manager@yopmail.com", required: true },
       { key: "password", label: "Password", placeholder: "At least 8 characters", required: true },
       { key: "role", label: "Role", options: ["Admin", "EC member", "Manager", "Accountant", "Security", "Resident", "Vendor"] },
+      { key: "flat", label: "Resident's flat (Resident role only)", placeholder: "A-1A" },
+      { key: "vendor", label: "Vendor (Vendor role only)", optionsFrom: (view) => vendorOptions("Not a vendor login")(view) },
     ],
   },
   billGenerate: {
@@ -399,6 +401,26 @@ MODALS.breakdown = {
 };
 withEdit("breakdown", "Edit breakdown");
 
+MODALS.userEdit = {
+  title: "Edit login",
+  kicker: MODALS.user.kicker,
+  submit: "Save changes",
+  fields: [
+    { key: "email", label: "Email", readOnly: true },
+    ...MODALS.user.fields.filter((f) => !["email", "password"].includes(f.key)),
+  ],
+};
+
+MODALS.superadminEdit = {
+  title: "Edit superadmin",
+  kicker: MODALS.user.kicker,
+  submit: "Save changes",
+  fields: [
+    { key: "email", label: "Email", readOnly: true },
+    { key: "name", label: "Full name", required: true },
+  ],
+};
+
 MODALS.billingRules = {
   title: "Billing rules",
   kicker: "Module 4 · Maintenance Billing",
@@ -445,13 +467,22 @@ export const DEFAULT_SETTINGS = {
 export function resolveModal(kind, view) {
   const cfg = MODALS[kind];
   if (!cfg) return null;
-  return { ...cfg, fields: cfg.fields.map((f) => (f.optionsFrom ? { ...f, options: f.optionsFrom(view || {}) } : f)) };
+  const ownFlat = view?.scopeFlat;
+  return {
+    ...cfg,
+    fields: cfg.fields.map((f) => {
+      if (ownFlat && f.key === "flat") return { ...f, readOnly: true, required: false };
+      return f.optionsFrom ? { ...f, options: f.optionsFrom(view || {}) } : f;
+    }),
+  };
 }
 
 export function emptyForm(kind, view) {
   const form = {};
   resolveModal(kind, view).fields.forEach((f) => {
-    if (f.default !== undefined) {
+    if (f.key === "flat" && view?.scopeFlat) {
+      form[f.key] = view.scopeFlat;
+    } else if (f.default !== undefined) {
       form[f.key] = typeof f.default === "function" ? f.default() : f.default;
     } else if (f.options?.length) {
       form[f.key] = typeof f.options[0] === "string" ? f.options[0] : f.options[0].value;

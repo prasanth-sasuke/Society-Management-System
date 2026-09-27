@@ -263,7 +263,8 @@ export function ResidentsScreen({ view, onAdd, onEdit, onMoveOut }) {
   );
 }
 
-export function AccessScreen({ view, onAdd }) {
+export function AccessScreen({ view, onAdd, onEdit, onRemove }) {
+  const hasActions = Boolean(onEdit || onRemove);
   return (
     <>
       <PageHead tag="Module 3 · User & Access" title="Users & role permissions" lead="The superadmin creates every other login. A role decides which modules a user can open and whether they can only read or also edit." action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add login</PrimaryButton> : null} />
@@ -307,16 +308,30 @@ export function AccessScreen({ view, onAdd }) {
           <SectionTitle style={{ marginBottom: 20 }}>Active logins</SectionTitle>
           <table>
             <thead>
-              <tr><Th>Name</Th><Th>Email</Th><Th>Role</Th></tr>
+              <tr><Th>Name</Th><Th>Email</Th><Th>Role</Th><Th>Linked to</Th>{hasActions ? <Th /> : null}</tr>
             </thead>
             <tbody>
-              {view.users.map((u) => (
-                <tr key={u.id}>
-                  <Td>{u.fullName}</Td>
-                  <Td muted>{u.email}</Td>
-                  <Td>{u.roleLabel}</Td>
-                </tr>
-              ))}
+              {view.users.map((u) => {
+                const needsLink = (u.role === "RESIDENT" || u.role === "VENDOR") && !u.linkedTo;
+                return (
+                  <tr key={u.id}>
+                    <Td>{u.fullName}</Td>
+                    <Td muted>{u.email}</Td>
+                    <Td>{u.roleLabel}</Td>
+                    <Td muted={!needsLink} style={needsLink ? { color: "#b0491a" } : undefined}>{needsLink ? "Not linked — sees nothing" : u.linkedTo || "—"}</Td>
+                    {hasActions ? (
+                      <Td>
+                        <EditDelete
+                          row={u}
+                          onEdit={onEdit}
+                          onDelete={u.role === "SUPERADMIN" ? null : onRemove}
+                          deleteLabel="Remove"
+                        />
+                      </Td>
+                    ) : null}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </Card>

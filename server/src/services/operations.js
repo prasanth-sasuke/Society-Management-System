@@ -14,6 +14,7 @@ import {
   parseLooseDate,
 } from "../labels.js";
 import { findFlatByCode, findOrCreateFacility, getSociety } from "./society.js";
+import { assertFlatAccess, requireOwnFlat } from "../auth/scope.js";
 
 function optionalText(value) {
   const text = String(value ?? "").trim();
@@ -26,8 +27,9 @@ async function mustFind(model, id, label) {
   return row;
 }
 
-export async function updateTicket(id, body) {
+export async function updateTicket(id, body, user) {
   const ticket = await mustFind("ticket", id, "Ticket");
+  assertFlatAccess(user, ticket.flatId, "Ticket");
   const status = fromLabel(TICKET_STATUS, body.status, "status");
   const owner = body.owner.trim();
   const changes = [];
@@ -55,8 +57,9 @@ export async function updateTicket(id, body) {
   return { id: ticket.ticketNo, status: TICKET_STATUS[status] };
 }
 
-export async function deleteTicket(id) {
+export async function deleteTicket(id, user) {
   const ticket = await mustFind("ticket", id, "Ticket");
+  assertFlatAccess(user, ticket.flatId, "Ticket");
   await prisma.ticket.delete({ where: { id } });
   return { id: ticket.ticketNo };
 }
@@ -113,10 +116,11 @@ async function dropFacilityIfUnused(tx, facilityId) {
   if (!left) await tx.facility.delete({ where: { id: facilityId } });
 }
 
-export async function updateBooking(id, body) {
+export async function updateBooking(id, body, user) {
   const booking = await mustFind("booking", id, "Booking");
+  assertFlatAccess(user, booking.flatId, "Booking");
   const society = await getSociety();
-  const flat = await findFlatByCode(body.flat);
+  const flat = await findFlatByCode(requireOwnFlat(user) || body.flat);
   const bookingDate = parseLooseDate(body.date);
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -141,9 +145,10 @@ export async function updateBooking(id, body) {
   return { facility: updated.facility.name, flat: flat.code, date: updated.dateLabel };
 }
 
-export async function deleteBooking(id) {
+export async function deleteBooking(id, user) {
   const booking = await prisma.booking.findUnique({ where: { id }, include: { facility: true, flat: true } });
   if (!booking) throw new AppError(404, "Booking not found.");
+  assertFlatAccess(user, booking.flatId, "Booking");
   await prisma.$transaction(async (tx) => {
     await tx.booking.delete({ where: { id } });
     await dropFacilityIfUnused(tx, booking.facilityId);

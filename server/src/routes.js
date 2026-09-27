@@ -22,6 +22,7 @@ import {
   vendorCreateSchema,
   vendorUpdateSchema,
   userCreateSchema,
+  userUpdateSchema,
   voucherCreateSchema,
   staffSchema,
   attendanceSaveSchema,
@@ -89,6 +90,14 @@ api.post("/users", requireAuth, requirePermission("users", "write"), validate(us
   res.status(201).json(await auth.createUser(req.body));
 }));
 
+api.patch("/users/:id", ...authWrite("users", userUpdateSchema, async (req, res) => {
+  res.json(await auth.updateUser(req.params.id, req.body));
+}));
+
+api.delete("/users/:id", ...authWrite("users", null, async (req, res) => {
+  res.json(await auth.removeUser(req.params.id, req.user.id));
+}));
+
 api.get("/public/society", asyncHandler(async (_req, res) => {
   res.json(await catalog.getPublicSociety());
 }));
@@ -125,8 +134,8 @@ api.delete("/flats/:id", requireAuth, requirePermission("property", "write"), as
   res.json(await records.deleteFlat(req.params.id));
 }));
 
-api.get("/residents", ...authRead("residents", async (_req, res) => {
-  res.json(await catalog.listResidents());
+api.get("/residents", ...authRead("residents", async (req, res) => {
+  res.json(await catalog.listResidents(req.user));
 }));
 
 api.post("/residents", requireAuth, requirePermission("residents", "write"), validate(residentCreateSchema), asyncHandler(async (req, res) => {
@@ -141,12 +150,12 @@ api.post("/residents/:id/move-out", requireAuth, requirePermission("residents", 
   res.json(await records.moveOutResident(req.params.id));
 }));
 
-api.get("/move-events", ...authRead("residents", async (_req, res) => {
-  res.json(await catalog.listMoveEvents());
+api.get("/move-events", ...authRead("residents", async (req, res) => {
+  res.json(await catalog.listMoveEvents(req.user));
 }));
 
-api.get("/bills", ...authRead("billing", async (_req, res) => {
-  res.json(await catalog.listBills());
+api.get("/bills", ...authRead("billing", async (req, res) => {
+  res.json(await catalog.listBills(req.user));
 }));
 
 api.post("/bills/generate", requireAuth, requirePermission("billing", "write"), validate(billGenerateSchema), asyncHandler(async (req, res) => {
@@ -193,24 +202,24 @@ api.delete("/bank-accounts/:id", requireAuth, requirePermission("finance", "writ
   res.json(await operations.deleteBankAccount(req.params.id));
 }));
 
-api.get("/tickets", ...authRead("helpdesk", async (_req, res) => {
-  res.json(await catalog.listTickets());
+api.get("/tickets", ...authRead("helpdesk", async (req, res) => {
+  res.json(await catalog.listTickets(req.user));
 }));
 
 api.get("/tickets/:ticketNo", ...authRead("helpdesk", async (req, res) => {
-  res.json(await catalog.getTicket(req.params.ticketNo));
+  res.json(await catalog.getTicket(req.params.ticketNo, req.user));
 }));
 
 api.post("/tickets", requireAuth, requirePermission("helpdesk", "write"), validate(ticketCreateSchema), asyncHandler(async (req, res) => {
-  res.status(201).json(await catalog.createTicket(req.body));
+  res.status(201).json(await catalog.createTicket(req.body, req.user));
 }));
 
 api.patch("/tickets/:id", requireAuth, requirePermission("helpdesk", "write"), validate(ticketUpdateSchema), asyncHandler(async (req, res) => {
-  res.json(await operations.updateTicket(req.params.id, req.body));
+  res.json(await operations.updateTicket(req.params.id, req.body, req.user));
 }));
 
 api.delete("/tickets/:id", requireAuth, requirePermission("helpdesk", "write"), asyncHandler(async (req, res) => {
-  res.json(await operations.deleteTicket(req.params.id));
+  res.json(await operations.deleteTicket(req.params.id, req.user));
 }));
 
 api.get("/staff", ...authRead("staff", async (_req, res) => {
@@ -269,8 +278,8 @@ api.delete("/follow-ups/:id", ...authWrite("staff", null, async (req, res) => {
   res.json(await staffing.deleteFollowUp(req.params.id));
 }));
 
-api.get("/vendors", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listVendors());
+api.get("/vendors", ...authRead("vendors", async (req, res) => {
+  res.json(await catalog.listVendors(req.user));
 }));
 
 api.post("/vendors", requireAuth, requirePermission("vendors", "write"), validate(vendorCreateSchema), asyncHandler(async (req, res) => {
@@ -285,8 +294,8 @@ api.delete("/vendors/:id", requireAuth, requirePermission("vendors", "write"), a
   res.json(await operations.deleteVendor(req.params.id));
 }));
 
-api.get("/quotations", ...authRead("vendors", async (_req, res) => {
-  res.json(await maintenance.listQuotations());
+api.get("/quotations", ...authRead("vendors", async (req, res) => {
+  res.json(await maintenance.listQuotations(req.user));
 }));
 
 api.post("/quotations", ...authWrite("vendors", quotationSchema, async (req, res) => {
@@ -301,8 +310,8 @@ api.delete("/quotations/:id", ...authWrite("vendors", null, async (req, res) => 
   res.json(await maintenance.deleteQuotation(req.params.id));
 }));
 
-api.get("/invoices", ...authRead("vendors", async (_req, res) => {
-  res.json(await maintenance.listInvoices());
+api.get("/invoices", ...authRead("vendors", async (req, res) => {
+  res.json(await maintenance.listInvoices(req.user));
 }));
 
 api.post("/invoices", ...authWrite("vendors", invoiceSchema, async (req, res) => {
@@ -337,8 +346,8 @@ api.delete("/assets/:id", requireAuth, requirePermission("vendors", "write"), as
   res.json(await operations.deleteAsset(req.params.id));
 }));
 
-api.get("/amc", ...authRead("vendors", async (_req, res) => {
-  res.json(await maintenance.listAmc());
+api.get("/amc", ...authRead("vendors", async (req, res) => {
+  res.json(await maintenance.listAmc(req.user));
 }));
 
 api.post("/amc", ...authWrite("vendors", amcSchema, async (req, res) => {
@@ -357,8 +366,8 @@ api.post("/amc/:id/serviced", ...authWrite("vendors", null, async (req, res) => 
   res.json(await maintenance.markAmcServiced(req.params.id));
 }));
 
-api.get("/reminders", ...authRead("vendors", async (_req, res) => {
-  res.json(await maintenance.listReminders());
+api.get("/reminders", ...authRead("vendors", async (req, res) => {
+  res.json(await maintenance.listReminders(req.user));
 }));
 
 api.get("/breakdowns", ...authRead("vendors", async (_req, res) => {
@@ -381,20 +390,20 @@ api.get("/facilities", ...authRead("facility", async (_req, res) => {
   res.json(await catalog.listFacilities());
 }));
 
-api.get("/bookings", ...authRead("facility", async (_req, res) => {
-  res.json(await catalog.listBookings());
+api.get("/bookings", ...authRead("facility", async (req, res) => {
+  res.json(await catalog.listBookings(req.user));
 }));
 
 api.post("/bookings", requireAuth, requirePermission("facility", "write"), validate(bookingCreateSchema), asyncHandler(async (req, res) => {
-  res.status(201).json(await catalog.createBooking(req.body));
+  res.status(201).json(await catalog.createBooking(req.body, req.user));
 }));
 
 api.patch("/bookings/:id", requireAuth, requirePermission("facility", "write"), validate(bookingUpdateSchema), asyncHandler(async (req, res) => {
-  res.json(await operations.updateBooking(req.params.id, req.body));
+  res.json(await operations.updateBooking(req.params.id, req.body, req.user));
 }));
 
 api.delete("/bookings/:id", requireAuth, requirePermission("facility", "write"), asyncHandler(async (req, res) => {
-  res.json(await operations.deleteBooking(req.params.id));
+  res.json(await operations.deleteBooking(req.params.id, req.user));
 }));
 
 api.get("/security", ...authRead("security", async (_req, res) => {

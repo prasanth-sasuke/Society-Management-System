@@ -198,13 +198,19 @@ model User {
   fullName     String   @map("full_name")
   role         UserRole
   active       Boolean  @default(true)
+  flatId       String?  @map("flat_id")
+  vendorId     String?  @map("vendor_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   society Society @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  flat    Flat?   @relation(fields: [flatId], references: [id], onDelete: SetNull)
+  vendor  Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
   @@index([societyId])
   @@index([role])
+  @@index([flatId])
+  @@index([vendorId])
   @@map("users")
 }
 
@@ -248,6 +254,7 @@ model Flat {
   bills      Bill[]
   tickets    Ticket[]
   bookings   Booking[]
+  users      User[]
 
   @@index([blockId])
   @@index([status])
@@ -537,6 +544,7 @@ model Vendor {
   society   Society         @relation(fields: [societyId], references: [id], onDelete: Cascade)
   invoices  VendorInvoice[]
   amcContracts AmcContract[]
+  users     User[]
 
   @@index([societyId])
   @@map("vendors")

@@ -87,6 +87,8 @@ export const CREATE_MODULE = {
   amcEdit: "vendors",
   breakdown: "vendors",
   breakdownEdit: "vendors",
+  userEdit: "users",
+  superadminEdit: "users",
   billingRules: "billing",
   societyName: "property",
 };

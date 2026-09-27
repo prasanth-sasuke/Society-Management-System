@@ -180,7 +180,20 @@ function chartBars(trend) {
   }));
 }
 
-export function buildViewFromApi(catalog, permissions = {}) {
+function ownBillMoney(bills) {
+  const paid = bills.filter((row) => row.remainingAmount <= 0);
+  const unpaid = bills.filter((row) => row.remainingAmount > 0);
+  return {
+    billed: bills.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
+    collected: bills.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0),
+    due: unpaid.reduce((sum, row) => sum + Number(row.remainingAmount || 0), 0),
+    paidBills: paid.length,
+    unpaidBills: unpaid.length,
+  };
+}
+
+export function buildViewFromApi(catalog, permissions = {}, scope = null) {
+  const scopeFlat = scope && "flat" in scope ? scope.flat || "" : null;
   const society = catalog.society || {};
   const dashboard = catalog.dashboard || {};
   const occupancy = dashboard.occupancy || { occupied: 0, vacant: 0, total: 0 };
@@ -247,8 +260,31 @@ export function buildViewFromApi(catalog, permissions = {}) {
   const workingDays = staffRows.reduce((sum, row) => sum + Number(row.workingDays || 0), 0);
   const salaryTotal = money.salary ?? staffRows.reduce((sum, row) => sum + Number(row.salaryAmount || 0), 0);
   const pendingPayouts = staffRows.filter((row) => !/^processed$/i.test(row.payout || "")).length;
+  const own = scopeFlat === null ? null : ownBillMoney(bills);
+  const billMoney = own || money;
   const homeKpis = [];
-  if (showMoney) {
+  if (own) {
+    homeKpis.push(
+      {
+        label: "Your flat",
+        value: scopeFlat || "Not linked",
+        note: scopeFlat ? "Bills, complaints and bookings shown are for this flat" : "Ask the society office to link your login",
+        tone: "#8a8a80",
+      },
+      {
+        label: "You have paid",
+        value: rupees(own.collected),
+        note: own.paidBills ? `${plural(own.paidBills, "bill")} fully paid` : "No payments yet",
+        tone: "#1e6b52",
+      },
+      {
+        label: "You still owe",
+        value: rupees(own.due),
+        note: own.unpaidBills ? `${plural(own.unpaidBills, "bill")} unpaid` : "Nothing due",
+        tone: "#b0491a",
+      },
+    );
+  } else if (showMoney) {
     homeKpis.push(
       {
         label: "Money collected",
@@ -270,7 +306,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
       },
     );
   }
-  if (showOccupancy) {
+  if (showOccupancy && !own) {
     homeKpis.push({
       label: "Flats occupied",
       value: occupiedNote,
@@ -294,10 +330,11 @@ export function buildViewFromApi(catalog, permissions = {}) {
       : "signed in with your assigned modules",
     homeKpis,
     chart: chartBars(dashboard.trend),
+    scopeFlat,
     billKpis: [
-      { label: "Total billed", value: rupees(money.billed), note: bills.length ? `${plural(bills.length, "bill")} in register` : "No bills generated yet" },
-      { label: "Collected so far", value: rupees(money.collected), note: money.paidBills ? `${plural(money.paidBills, "bill")} fully paid` : "No collections yet" },
-      { label: "Still pending", value: rupees(money.due), note: money.unpaidBills ? `${plural(money.unpaidBills, "bill")} unpaid` : "No dues yet" },
+      { label: "Total billed", value: rupees(billMoney.billed), note: bills.length ? `${plural(bills.length, "bill")} in register` : "No bills generated yet" },
+      { label: "Collected so far", value: rupees(billMoney.collected), note: billMoney.paidBills ? `${plural(billMoney.paidBills, "bill")} fully paid` : "No collections yet" },
+      { label: "Still pending", value: rupees(billMoney.due), note: billMoney.unpaidBills ? `${plural(billMoney.unpaidBills, "bill")} unpaid` : "No dues yet" },
     ],
     finKpis: [
       { label: "Income YTD", value: rupees(money.collected), note: money.paidBills ? "From maintenance collections" : "No income recorded yet", tone: "#8a8a80" },

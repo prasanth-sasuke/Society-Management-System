@@ -71,6 +71,8 @@ const CREATE_PATHS = {
   amcEdit: patchTo("/api/amc"),
   breakdown: "/api/breakdowns",
   breakdownEdit: patchTo("/api/breakdowns"),
+  userEdit: patchTo("/api/users"),
+  superadminEdit: patchTo("/api/users"),
   billingRules: { method: "PATCH", path: "/api/society" },
   societyName: { method: "PATCH", path: "/api/society" },
 };
@@ -99,6 +101,7 @@ const DELETE_PATHS = {
   invoice: (id) => `/api/invoices/${encodeURIComponent(id)}`,
   amc: (id) => `/api/amc/${encodeURIComponent(id)}`,
   breakdown: (id) => `/api/breakdowns/${encodeURIComponent(id)}`,
+  user: (id) => `/api/users/${encodeURIComponent(id)}`,
 };
 
 export class ApiError extends Error {
@@ -292,5 +295,6 @@ export function toastForCreate(kind, created) {
     return `Billing rules saved — ${created.billingFrequency.toLowerCase()}, ${fee}.`;
   }
   if (kind === "societyName") return `Society renamed to ${created.name}.`;
+  if (kind === "userEdit" || kind === "superadminEdit") return `Login for ${created.email} updated.`;
   return "Saved.";
 }

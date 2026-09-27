@@ -9,7 +9,10 @@ export async function requireAuth(req, _res, next) {
     const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
     if (!token) throw new AppError(401, "Sign in required.");
     const payload = verifySession(token);
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { flat: { select: { code: true } }, vendor: { select: { name: true } } },
+    });
     if (!user || !user.active) throw new AppError(401, "Sign in required.");
     req.user = {
       id: user.id,
@@ -18,6 +21,10 @@ export async function requireAuth(req, _res, next) {
       fullName: user.fullName,
       role: user.role,
       permissions: permissionsFor(user.role),
+      flatId: user.flatId,
+      flatCode: user.flat?.code || null,
+      vendorId: user.vendorId,
+      vendorName: user.vendor?.name || null,
     };
     next();
   } catch (err) {

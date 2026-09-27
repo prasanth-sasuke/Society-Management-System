@@ -3,8 +3,14 @@ import { AppError } from "../http.js";
 import { dayLabel, inr, money, societyNow } from "../labels.js";
 import { createVoucher } from "./billing.js";
 import { getSociety } from "./society.js";
+import { vendorScope } from "../auth/scope.js";
 
 const DAY = 86400000;
+
+function vendorWhere(user) {
+  const vendor = vendorScope(user);
+  return vendor ? { vendorId: vendor.id } : {};
+}
 export const AMC_FREQUENCIES = { Monthly: 1, Quarterly: 3, "Half-yearly": 6, Yearly: 12 };
 
 function isoDay(date) {
@@ -55,7 +61,8 @@ async function optionalVendor(societyId, vendorId) {
 
 // Quotations
 
-export async function listQuotations() {
+export async function listQuotations(user) {
+  if (vendorScope(user)) return [];
   const society = await getSociety();
   const rows = await prisma.quotation.findMany({ where: { societyId: society.id }, orderBy: { createdAt: "desc" } });
   return rows.map((q) => ({ id: q.id, work: q.work, vendors: q.vendorsNote, range: q.rangeNote }));
@@ -93,10 +100,10 @@ function invoiceDueLabel(dueOn, today) {
   return `Due ${dayLabel(dueOn)}`;
 }
 
-export async function listInvoices() {
+export async function listInvoices(user) {
   const today = societyNow().date;
   const rows = await prisma.vendorInvoice.findMany({
-    where: { paidOn: null },
+    where: { paidOn: null, ...vendorWhere(user) },
     include: { vendor: true },
     orderBy: [{ dueOn: "asc" }, { invoiceNo: "asc" }],
   });
@@ -184,11 +191,11 @@ function amcStatus(days) {
   return "Active";
 }
 
-export async function listAmc() {
+export async function listAmc(user) {
   const society = await getSociety();
   const today = societyNow().date;
   const rows = await prisma.amcContract.findMany({
-    where: { societyId: society.id },
+    where: { societyId: society.id, ...vendorWhere(user) },
     include: { vendor: true },
     orderBy: { nextOn: "asc" },
   });
@@ -239,14 +246,15 @@ export async function markAmcServiced(id) {
 
 // Reminders are derived: AMC services, vendor renewals and invoice due dates in the next 30 days (or overdue).
 
-export async function listReminders() {
+export async function listReminders(user) {
   const society = await getSociety();
   const today = societyNow().date;
   const horizon = new Date(today.getTime() + 30 * DAY);
+  const vendor = vendorScope(user);
   const [amc, vendors, invoices] = await Promise.all([
-    prisma.amcContract.findMany({ where: { societyId: society.id, nextOn: { lte: horizon } }, include: { vendor: true } }),
-    prisma.vendor.findMany({ where: { societyId: society.id, renewalOn: { not: null, lte: horizon } } }),
-    prisma.vendorInvoice.findMany({ where: { paidOn: null, dueOn: { not: null, lte: horizon } }, include: { vendor: true } }),
+    prisma.amcContract.findMany({ where: { societyId: society.id, nextOn: { lte: horizon }, ...vendorWhere(user) }, include: { vendor: true } }),
+    prisma.vendor.findMany({ where: { societyId: society.id, renewalOn: { not: null, lte: horizon }, ...(vendor ? { id: vendor.id } : {}) } }),
+    prisma.vendorInvoice.findMany({ where: { paidOn: null, dueOn: { not: null, lte: horizon }, ...vendorWhere(user) }, include: { vendor: true } }),
   ]);
   const items = [
     ...amc.map((a) => ({ what: `${a.equipment} service${a.vendor ? ` — ${a.vendor.name}` : ""}`, on: a.nextOn })),

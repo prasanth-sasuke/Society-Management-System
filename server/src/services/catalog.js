@@ -26,6 +26,12 @@ import {
 import { getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
 import { accruePenalties } from "./billing.js";
 import { canWrite } from "../auth/permissions.js";
+import { flatScope, requireOwnFlat, vendorScope } from "../auth/scope.js";
+
+function flatWhere(user) {
+  const flatId = flatScope(user);
+  return flatId ? { flatId } : {};
+}
 
 const BILLING_FREQUENCY = { QUARTERLY: "Quarterly, in advance", MONTHLY: "Monthly" };
 
@@ -361,9 +367,9 @@ export async function createFlat(body) {
   return serializeFlat(created);
 }
 
-export async function listResidents() {
+export async function listResidents(user) {
   const residents = await prisma.resident.findMany({
-    where: { isCurrent: true },
+    where: { isCurrent: true, ...flatWhere(user) },
     include: { flat: true },
     orderBy: { fullName: "asc" },
   });
@@ -395,8 +401,9 @@ export async function createResident(body) {
   return serializeResident(created);
 }
 
-export async function listMoveEvents() {
+export async function listMoveEvents(user) {
   const rows = await prisma.moveEvent.findMany({
+    where: flatWhere(user),
     include: { flat: true },
     orderBy: { happenedOn: "desc" },
   });
@@ -415,10 +422,11 @@ function daysOverdue(row, today) {
   return Math.max(days, row.overdueDays || 0, 0);
 }
 
-export async function listBills() {
+export async function listBills(user) {
   await accruePenalties();
   const today = societyNow().date;
   const rows = await prisma.bill.findMany({
+    where: flatWhere(user),
     include: {
       flat: { include: { block: true } },
       resident: true,
@@ -507,24 +515,35 @@ export async function listFinance() {
   };
 }
 
-export async function listTickets() {
+export function ticketWhere(user) {
+  const vendor = vendorScope(user);
+  if (vendor) {
+    return vendor.name ? { assignee: { contains: vendor.name, mode: "insensitive" } } : { id: vendor.id };
+  }
+  return flatWhere(user);
+}
+
+export async function listTickets(user) {
   const rows = await prisma.ticket.findMany({
+    where: ticketWhere(user),
     include: { events: { orderBy: { occurredAt: "asc" } }, feedback: true },
     orderBy: { createdAt: "desc" },
   });
   return rows.map(serializeTicket);
 }
 
-export async function getTicket(ticketNo) {
-  const row = await prisma.ticket.findUnique({
-    where: { ticketNo },
+export async function getTicket(ticketNo, user) {
+  const row = await prisma.ticket.findFirst({
+    where: { ticketNo, ...ticketWhere(user) },
     include: { events: { orderBy: { occurredAt: "asc" } }, feedback: true },
   });
   if (!row) throw new AppError(404, "Ticket not found");
   return serializeTicket(row);
 }
 
-export async function createTicket(body) {
+export async function createTicket(input, user) {
+  const ownFlat = requireOwnFlat(user);
+  const body = ownFlat ? { ...input, flat: ownFlat } : input;
   const society = await getSociety();
   const parsed = parseFlatCode(body.flat);
   let flat = null;
@@ -554,9 +573,13 @@ export async function createTicket(body) {
   return serializeTicket(created);
 }
 
-export async function listVendors() {
+export async function listVendors(user) {
   const society = await getSociety();
-  const rows = await prisma.vendor.findMany({ where: { societyId: society.id }, orderBy: { name: "asc" } });
+  const vendor = vendorScope(user);
+  const rows = await prisma.vendor.findMany({
+    where: { societyId: society.id, ...(vendor ? { id: vendor.id } : {}) },
+    orderBy: { name: "asc" },
+  });
   return rows.map(serializeVendor);
 }
 
@@ -624,15 +647,18 @@ export async function listFacilities() {
   });
 }
 
-export async function listBookings() {
+export async function listBookings(user) {
   const rows = await prisma.booking.findMany({
+    where: flatWhere(user),
     include: { facility: true, flat: true },
     orderBy: { bookingDate: "asc" },
   });
   return rows.map(serializeBooking);
 }
 
-export async function createBooking(body) {
+export async function createBooking(input, user) {
+  const ownFlat = requireOwnFlat(user);
+  const body = ownFlat ? { ...input, flat: ownFlat } : input;
   const society = await getSociety();
   const flat = await findFlatByCode(body.flat);
   const facility = await findOrCreateFacility(society.id, body.facility);

@@ -3,6 +3,14 @@ import { prisma } from "../prisma.js";
 import { AppError } from "../http.js";
 import { signSession } from "../auth/jwt.js";
 import { ROLE_LABELS, ROLE_SCOPES, CREATABLE_ROLES, permissionsFor, permissionMatrixView } from "../auth/permissions.js";
+import { sessionScope } from "../auth/scope.js";
+import { findFlatByCode } from "./society.js";
+
+const LINKS = { flat: { select: { code: true } }, vendor: { select: { name: true } } };
+
+function withLinks(user) {
+  return { ...user, flatCode: user.flat?.code || null, vendorName: user.vendor?.name || null };
+}
 
 function publicUser(user) {
   return {
@@ -15,17 +23,19 @@ function publicUser(user) {
 }
 
 export function sessionPayload(user) {
-  const permissions = permissionsFor(user.role);
+  const linked = withLinks(user);
   return {
     token: signSession(user),
     user: publicUser(user),
-    permissions,
+    permissions: permissionsFor(user.role),
+    scope: sessionScope(linked),
   };
 }
 
 export async function login(email, password) {
   const user = await prisma.user.findUnique({
     where: { email: String(email || "").trim().toLowerCase() },
+    include: LINKS,
   });
   const ok = user ? await bcrypt.compare(password, user.passwordHash) : false;
   if (!user || !user.active || !ok) {
@@ -44,19 +54,41 @@ export function currentSession(reqUser) {
       roleLabel: ROLE_LABELS[reqUser.role],
     },
     permissions: reqUser.permissions,
+    scope: sessionScope(reqUser),
   };
+}
+
+function roleFrom(requested) {
+  const text = String(requested || "").trim();
+  const role = CREATABLE_ROLES.find((item) => (
+    item === text.toUpperCase() || ROLE_LABELS[item].toLowerCase() === text.toLowerCase()
+  ));
+  if (!role) throw new AppError(400, "Choose a valid role. Superadmin cannot be created from the app.");
+  return role;
+}
+
+async function linksFor(role, body) {
+  if (role === "RESIDENT") {
+    const code = String(body.flat || "").trim();
+    if (!code) throw new AppError(400, "Enter the resident's flat, e.g. A-1A.");
+    const flat = await findFlatByCode(code);
+    return { flatId: flat.id, vendorId: null };
+  }
+  if (role === "VENDOR") {
+    const vendorId = String(body.vendor || "").trim();
+    if (!vendorId) throw new AppError(400, "Pick the vendor this login belongs to.");
+    const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
+    if (!vendor) throw new AppError(400, "That vendor no longer exists.");
+    return { flatId: null, vendorId: vendor.id };
+  }
+  return { flatId: null, vendorId: null };
 }
 
 export async function createUser(body) {
   const society = await prisma.society.findFirst({ orderBy: { createdAt: "asc" } });
   if (!society) throw new AppError(404, "No society found.");
-  const requested = String(body.role || "").trim();
-  const role = CREATABLE_ROLES.find((item) => (
-    item === requested.toUpperCase() || ROLE_LABELS[item].toLowerCase() === requested.toLowerCase()
-  ));
-  if (!role) {
-    throw new AppError(400, "Choose a valid role. Superadmin cannot be created from the app.");
-  }
+  const role = roleFrom(body.role);
+  const links = await linksFor(role, body);
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
   if (password.length < 8) {
@@ -71,6 +103,7 @@ export async function createUser(body) {
         passwordHash,
         fullName: String(body.name || "").trim(),
         role,
+        ...links,
       },
     });
     return publicUser(created);
@@ -82,11 +115,31 @@ export async function createUser(body) {
   }
 }
 
+export async function updateUser(id, body) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError(404, "Login not found.");
+  const name = String(body.name || "").trim();
+  const data = user.role === "SUPERADMIN"
+    ? { fullName: name }
+    : { fullName: name, role: roleFrom(body.role), ...(await linksFor(roleFrom(body.role), body)) };
+  const updated = await prisma.user.update({ where: { id }, data });
+  return publicUser(updated);
+}
+
+export async function removeUser(id, actorId) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError(404, "Login not found.");
+  if (user.id === actorId) throw new AppError(409, "You can't remove your own login.");
+  if (user.role === "SUPERADMIN") throw new AppError(409, "The superadmin login can't be removed.");
+  await prisma.user.delete({ where: { id } });
+  return { email: user.email };
+}
+
 export async function listAccess() {
   const users = await prisma.user.findMany({
     where: { active: true },
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
-    select: { id: true, email: true, fullName: true, role: true },
+    select: { id: true, email: true, fullName: true, role: true, vendorId: true, ...LINKS },
   });
   const counts = {};
   for (const user of users) {
@@ -94,9 +147,12 @@ export async function listAccess() {
   }
   const matrix = permissionMatrixView();
   return {
-    users: users.map((user) => ({
+    users: users.map(({ flat, vendor, ...user }) => ({
       ...user,
       roleLabel: ROLE_LABELS[user.role],
+      flat: flat?.code || "",
+      vendorId: user.vendorId || "",
+      linkedTo: flat ? `Flat ${flat.code}` : vendor ? vendor.name : "",
     })),
     roleCards: Object.keys(ROLE_LABELS).map((role) => ({
       role: ROLE_LABELS[role],
