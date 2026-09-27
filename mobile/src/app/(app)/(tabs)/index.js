@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { endpoints } from '../../../api/endpoints';
 import { useSession } from '../../../auth/AuthContext';
 import { Card, Kpi, KpiGrid, Loading, Notice, Row, Screen } from '../../../components/ui';
@@ -50,6 +51,7 @@ export default function Home() {
               key={t.id}
               title={`${t.id} · ${t.category}`}
               subtitle={`${t.flat} — ${t.text}`}
+              onPress={() => router.push({ pathname: '/ticket/[no]', params: { no: t.id } })}
               right={<Text style={{ color: t.priority === 'High' ? colors.rust : colors.faint, fontWeight: '600' }}>{t.priority}</Text>}
             />
           ))}

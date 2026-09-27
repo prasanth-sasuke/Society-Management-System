@@ -10,4 +10,6 @@ export const endpoints = {
   billPayments: (id) => `/api/bills/${encodeURIComponent(id)}/payments`,
   billWaivePenalty: (id) => `/api/bills/${encodeURIComponent(id)}/waive-penalty`,
   tickets: '/api/tickets',
+  ticket: (ticketNo) => `/api/tickets/${encodeURIComponent(ticketNo)}`,
+  ticketUpdate: (dbId) => `/api/tickets/${encodeURIComponent(dbId)}`,
 };
