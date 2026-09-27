@@ -4,8 +4,7 @@ import ModalForm, { Toast } from "./components/Overlay.jsx";
 import {
   approveVoucherRequest,
   createRecord,
-  deleteBillRequest,
-  deleteFlatRequest,
+  deleteRecord,
   fetchCatalog,
   fetchSession,
   formatApiError,
@@ -240,7 +239,7 @@ export default function App() {
 
   function deleteFlat(row) {
     if (!window.confirm(`Delete flat ${row.flat}? This can't be undone.`)) return;
-    runAction(() => deleteFlatRequest(row.id), (r) => `Flat ${r.flat} deleted.`);
+    runAction(() => deleteRecord("flat", row.id), (r) => `Flat ${r.flat} deleted.`);
   }
 
   function editResident(row) {
@@ -274,7 +273,93 @@ export default function App() {
 
   function deleteBill(row) {
     if (!window.confirm(`Delete the ${row.period} bill for ${row.flat}?`)) return;
-    runAction(() => deleteBillRequest(row.id), (r) => `${r.flat} bill for ${r.period} deleted.`);
+    runAction(() => deleteRecord("bill", row.id), (r) => `${r.flat} bill for ${r.period} deleted.`);
+  }
+
+  function editTicket(row) {
+    openModal("ticketEdit", {
+      id: row.dbId,
+      ticketNo: row.id,
+      flat: row.flat,
+      category: row.category,
+      text: row.text,
+      priority: row.priority,
+      owner: row.owner,
+      status: row.status,
+      note: "",
+    });
+  }
+
+  function deleteTicket(row) {
+    if (!window.confirm(`Delete ticket ${row.id} and its history?`)) return;
+    runAction(() => deleteRecord("ticket", row.dbId), (r) => `Ticket ${r.id} deleted.`);
+  }
+
+  function editVendor(row) {
+    openModal("vendorEdit", {
+      id: row.id,
+      name: row.name,
+      service: row.service,
+      phone: row.phone,
+      value: row.value,
+      renewal: blankDash(row.renewal),
+      pay: row.pay,
+    });
+  }
+
+  function deleteVendor(row) {
+    if (!window.confirm(`Remove vendor ${row.name}?`)) return;
+    runAction(() => deleteRecord("vendor", row.id), (r) => `${r.name} removed.`);
+  }
+
+  function editAsset(row) {
+    openModal("assetEdit", {
+      id: row.id,
+      tag: row.tag,
+      name: row.name,
+      category: row.category,
+      location: row.location,
+      installed: blankDash(row.installed),
+      amc: blankDash(row.amc),
+      condition: row.condition,
+    });
+  }
+
+  function deleteAsset(row) {
+    if (!window.confirm(`Delete asset ${row.tag}?`)) return;
+    runAction(() => deleteRecord("asset", row.id), (r) => `Asset ${r.tag} deleted.`);
+  }
+
+  function editBooking(row) {
+    openModal("bookingEdit", {
+      id: row.id,
+      facility: row.facility,
+      flat: blankDash(row.flat),
+      date: row.dateIso,
+      slot: row.slot,
+      charge: blankDash(row.charge),
+      deposit: blankDash(row.deposit),
+      pay: row.pay,
+    });
+  }
+
+  function cancelBooking(row) {
+    if (!window.confirm(`Cancel the ${row.facility} booking for ${row.flat} on ${row.date}?`)) return;
+    runAction(() => deleteRecord("booking", row.id), (r) => `${r.facility} booking for ${r.flat} on ${r.date} cancelled.`);
+  }
+
+  function editBank(row) {
+    openModal("bankEdit", {
+      id: row.id,
+      name: row.name,
+      meta: row.meta,
+      balance: String(row.balanceValue ?? ""),
+    });
+  }
+
+  function deleteBank(row) {
+    if (!window.confirm(`Remove ${row.name} from bank & cash?`)) return;
+    runAction(() => deleteRecord("bank", row.id), (r) => `${r.name} removed.`);
   }
 
   const closeModal = useCallback(() => {
@@ -366,16 +451,47 @@ export default function App() {
         view={view}
         onAdd={write("finance") ? () => openModal("voucher") : null}
         onApprove={write("finance") ? approveVoucher : null}
+        onAddBank={write("finance") ? () => openModal("bank") : null}
+        onEditBank={write("finance") ? editBank : null}
+        onDeleteBank={write("finance") ? deleteBank : null}
       />
     ),
-    helpdesk: <HelpdeskScreen view={view} onAdd={write("helpdesk") ? () => openModal("ticket") : null} />,
+    helpdesk: (
+      <HelpdeskScreen
+        view={view}
+        onAdd={write("helpdesk") ? () => openModal("ticket") : null}
+        onEdit={write("helpdesk") ? editTicket : null}
+        onDelete={write("helpdesk") ? deleteTicket : null}
+      />
+    ),
     security: <SecurityScreen view={view} />,
     staff: <StaffScreen view={view} onAttendance={write("staff") ? () => setToast("Attendance saved for 27 Aug — 12 present, 1 leave, 1 absent.") : null} />,
     roster: <RosterScreen view={view} onPublish={write("staff") ? () => setToast("Roster published for 24–30 Aug — 14 staff notified.") : null} />,
-    vendors: <VendorsScreen view={view} onAdd={write("vendors") ? () => openModal("vendor") : null} />,
-    assets: <AssetsScreen view={view} onAdd={write("vendors") ? () => openModal("asset") : null} />,
+    vendors: (
+      <VendorsScreen
+        view={view}
+        onAdd={write("vendors") ? () => openModal("vendor") : null}
+        onEdit={write("vendors") ? editVendor : null}
+        onDelete={write("vendors") ? deleteVendor : null}
+      />
+    ),
+    assets: (
+      <AssetsScreen
+        view={view}
+        onAdd={write("vendors") ? () => openModal("asset") : null}
+        onEdit={write("vendors") ? editAsset : null}
+        onDelete={write("vendors") ? deleteAsset : null}
+      />
+    ),
     ppm: <PpmScreen view={view} />,
-    facility: <FacilityScreen view={view} onAdd={write("facility") ? () => openModal("booking") : null} />,
+    facility: (
+      <FacilityScreen
+        view={view}
+        onAdd={write("facility") ? () => openModal("booking") : null}
+        onEdit={write("facility") ? editBooking : null}
+        onDelete={write("facility") ? cancelBooking : null}
+      />
+    ),
     reports: <ReportsScreen view={view} onExport={write("reports") ? () => setToast("Committee pack for Aug 2026 queued for export.") : null} />,
   };
 

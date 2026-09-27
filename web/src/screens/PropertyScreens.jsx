@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bar, Card, EmptyNote, EmptyTableNote, KpiCard, PageHead, PageLead, PageTitle, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
+import { Bar, Card, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, PageLead, PageTitle, Pill, PrimaryButton, RowActions, SecondaryButton, SectionTitle, Td, Th, dangerButton, rowButton } from "../components/ui.jsx";
 
 export function HomeScreen({ view }) {
   const lower = [view.showComplaints, view.showStaff, view.showEvents].filter(Boolean).length;
@@ -103,10 +103,6 @@ export function HomeScreen({ view }) {
       ) : null}
     </>
   );
-}
-
-function RowActions({ children }) {
-  return <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>{children}</div>;
 }
 
 export function BlocksScreen({ view, onAdd, onEdit, onDelete }) {
@@ -324,19 +320,6 @@ export function AccessScreen({ view, onAdd }) {
   );
 }
 
-const rowButton = {
-  border: "1px solid #cfe0d6",
-  background: "#fff",
-  cursor: "pointer",
-  borderRadius: 7,
-  padding: "6px 12px",
-  font: "700 13px Lato,sans-serif",
-  color: "#1e6b52",
-  whiteSpace: "nowrap",
-};
-
-const dangerButton = { ...rowButton, border: "1px solid #f0cdb8", color: "#b0491a" };
-
 export function BillsScreen({ view, onGenerate, onPay, onEdit, onDelete, onReceipt }) {
   const hasActions = Boolean(onPay || onEdit || onDelete);
   return (
@@ -415,7 +398,7 @@ export function BillsScreen({ view, onGenerate, onPay, onEdit, onDelete, onRecei
   );
 }
 
-export function AccountsScreen({ view, onAdd, onApprove }) {
+export function AccountsScreen({ view, onAdd, onApprove, onAddBank, onEditBank, onDeleteBank }) {
   return (
     <>
       <PageHead
@@ -456,16 +439,26 @@ export function AccountsScreen({ view, onAdd, onApprove }) {
         </Card>
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <Card>
-            <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Bank & cash</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: 0 }}>Bank & cash</h2>
+              {onAddBank ? <button type="button" style={rowButton} onClick={onAddBank}>+ Add account</button> : null}
+            </div>
             {view.banks.length ? view.banks.map((b) => (
-              <div key={b.name} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
-                <div>
-                  <div style={{ font: "400 15px Lato,sans-serif" }}>{b.name}</div>
-                  <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{b.meta}</div>
+              <div key={b.id || b.name} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                  <div>
+                    <div style={{ font: "400 15px Lato,sans-serif" }}>{b.name}</div>
+                    {b.meta ? <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{b.meta}</div> : null}
+                  </div>
+                  <div style={{ font: "700 16px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{b.balance}</div>
                 </div>
-                <div style={{ font: "700 16px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{b.balance}</div>
+                {onEditBank || onDeleteBank ? (
+                  <div style={{ marginTop: 10 }}>
+                    <EditDelete row={b} onEdit={onEditBank} onDelete={onDeleteBank} editLabel="Update balance" deleteLabel="Remove" />
+                  </div>
+                ) : null}
               </div>
-            )) : <EmptyNote>No bank accounts yet.</EmptyNote>}
+            )) : <EmptyNote>No bank accounts yet.{onAddBank ? " Add one so “Cash + bank” shows your real balance." : ""}</EmptyNote>}
           </Card>
           <Card>
             <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Budget vs actual</h2>

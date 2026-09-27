@@ -89,7 +89,7 @@ export const MODALS = {
     fields: [
       { key: "facility", label: "Facility", options: ["Community hall", "Party area", "Gym", "Swimming pool", "Sports room", "Guest suite"] },
       { key: "flat", label: "Flat no.", placeholder: "B-2B", required: true },
-      { key: "date", label: "Date", placeholder: "12 Sep", required: true },
+      { key: "date", label: "Date", type: "date", required: true, default: () => isoDay(new Date()) },
       { key: "slot", label: "Slot", placeholder: "6–10 pm", required: true },
       { key: "charge", label: "Charge", placeholder: "₹3,000" },
       { key: "deposit", label: "Refundable deposit", placeholder: "₹5,000" },
@@ -170,6 +170,59 @@ MODALS.billEdit = {
     { key: "special", label: "Special contribution (₹)" },
     { key: "dueOn", label: "Due date", type: "date", required: true },
   ],
+};
+
+const lockKey = (key) => (f) => (f.key === key ? { ...f, readOnly: true, required: false } : f);
+
+MODALS.ticketEdit = {
+  title: "Update ticket",
+  kicker: MODALS.ticket.kicker,
+  submit: "Save update",
+  fields: [
+    { key: "ticketNo", label: "Ticket", readOnly: true },
+    ...MODALS.ticket.fields.map(lockFlat),
+    { key: "status", label: "Status", options: ["Assigned", "In progress", "Awaiting vendor", "Resolved"] },
+    { key: "note", label: "Update note (optional)", placeholder: "Replaced the tap washer" },
+  ],
+};
+
+MODALS.vendorEdit = {
+  title: "Edit vendor",
+  kicker: MODALS.vendor.kicker,
+  submit: "Save changes",
+  fields: MODALS.vendor.fields,
+};
+
+MODALS.assetEdit = {
+  title: "Edit asset",
+  kicker: MODALS.asset.kicker,
+  submit: "Save changes",
+  fields: MODALS.asset.fields.map(lockKey("tag")),
+};
+
+MODALS.bookingEdit = {
+  title: "Edit booking",
+  kicker: MODALS.booking.kicker,
+  submit: "Save changes",
+  fields: MODALS.booking.fields,
+};
+
+MODALS.bank = {
+  title: "Add bank / cash account",
+  kicker: "Module 5 · Accounting & Finance",
+  submit: "Save account",
+  fields: [
+    { key: "name", label: "Account name", placeholder: "SBI current account", required: true },
+    { key: "meta", label: "Details", placeholder: "A/c ending 4821 · Anna Nagar branch" },
+    { key: "balance", label: "Current balance (₹)", placeholder: "250000", required: true },
+  ],
+};
+
+MODALS.bankEdit = {
+  title: "Update bank / cash account",
+  kicker: MODALS.bank.kicker,
+  submit: "Save changes",
+  fields: MODALS.bank.fields,
 };
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

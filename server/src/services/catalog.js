@@ -20,8 +20,9 @@ import {
   parseFlatCode,
   parseLooseDate,
   parseSqft,
+  dayLabel,
 } from "../labels.js";
-import { getSociety, findFlatByCode } from "./society.js";
+import { getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
 
 export async function getSocietyPayload() {
   const society = await getSociety();
@@ -437,7 +438,7 @@ export async function listFinance() {
   const society = await getSociety();
   const [vouchers, banks, budget] = await Promise.all([
     prisma.voucher.findMany({ where: { societyId: society.id }, orderBy: { number: "asc" } }),
-    prisma.bankAccount.findMany({ where: { societyId: society.id } }),
+    prisma.bankAccount.findMany({ where: { societyId: society.id }, orderBy: { createdAt: "asc" } }),
     prisma.budgetLine.findMany({ where: { societyId: society.id } }),
   ]);
   return {
@@ -454,6 +455,7 @@ export async function listFinance() {
       name: b.name,
       meta: b.meta,
       balance: inr(b.balance),
+      balanceValue: money(b.balance),
     })),
     budget: budget.map((b) => {
       const pct = Math.round((Number(b.spentAmount) / Number(b.budgetAmount)) * 100);
@@ -472,7 +474,7 @@ export async function listFinance() {
 export async function listTickets() {
   const rows = await prisma.ticket.findMany({
     include: { events: { orderBy: { occurredAt: "asc" } }, feedback: true },
-    orderBy: { ticketNo: "desc" },
+    orderBy: { createdAt: "desc" },
   });
   return rows.map(serializeTicket);
 }
@@ -493,8 +495,10 @@ export async function createTicket(body) {
   if (parsed) {
     flat = await prisma.flat.findUnique({ where: { code: parsed.code } });
   }
-  const last = await prisma.ticket.findFirst({ orderBy: { ticketNo: "desc" } });
-  const nextNum = last ? Number(last.ticketNo.replace(/\D/g, "")) + 1 : 2042;
+  const numbers = await prisma.ticket.findMany({ select: { ticketNo: true } });
+  const highest = numbers.reduce((max, t) => Math.max(max, Number(t.ticketNo.replace(/\D/g, "")) || 0), 1000);
+  const nextNum = highest + 1;
+  const owner = body.owner.trim();
   const created = await prisma.ticket.create({
     data: {
       societyId: society.id,
@@ -504,9 +508,10 @@ export async function createTicket(body) {
       category: fromLabel(TICKET_CATEGORY, body.category, "category"),
       description: body.text.trim(),
       priority: fromLabel(TICKET_PRIORITY, body.priority, "priority"),
-      assignee: body.owner.trim(),
+      assignee: owner,
       photosNote: null,
       status: "ASSIGNED",
+      events: { create: { occurredAt: new Date(), note: `Raised and assigned to ${owner}` } },
     },
     include: { events: true, feedback: true },
   });
@@ -670,15 +675,26 @@ export async function listBreakdowns() {
 
 export async function listFacilities() {
   const society = await getSociety();
-  const rows = await prisma.facility.findMany({ where: { societyId: society.id }, orderBy: { name: "asc" } });
-  return rows.map((f) => ({
-    id: f.id,
-    name: f.name,
-    capacity: f.capacityNote,
-    charge: f.chargeNote,
-    next: f.nextNote,
-    state: FACILITY_STATUS[f.status],
-  }));
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const rows = await prisma.facility.findMany({
+    where: { societyId: society.id },
+    include: { bookings: { where: { bookingDate: { gte: today } }, orderBy: { bookingDate: "asc" } } },
+    orderBy: { name: "asc" },
+  });
+  return rows.map((f) => {
+    const upcoming = f.bookings.length;
+    const bookedToday = f.bookings[0]?.bookingDate.getTime() === today.getTime();
+    const autoState = bookedToday ? "BOOKED" : "AVAILABLE";
+    return {
+      id: f.id,
+      name: f.name,
+      capacity: f.capacityNote !== "—" ? f.capacityNote : upcoming ? `${upcoming} upcoming booking${upcoming === 1 ? "" : "s"}` : "No upcoming bookings",
+      charge: f.chargeNote !== "—" ? f.chargeNote : f.bookings[0]?.charge || "—",
+      next: upcoming ? `Next: ${f.bookings[0].dateLabel}` : f.nextNote,
+      state: FACILITY_STATUS[f.status === "MAINTENANCE" ? f.status : autoState],
+    };
+  });
 }
 
 export async function listBookings() {
@@ -691,18 +707,15 @@ export async function listBookings() {
 
 export async function createBooking(body) {
   const society = await getSociety();
-  const facility = await prisma.facility.findFirst({
-    where: { societyId: society.id, name: { equals: body.facility.trim(), mode: "insensitive" } },
-  });
-  if (!facility) throw new AppError(400, `Unknown facility: ${body.facility}`);
-  const parsed = parseFlatCode(body.flat);
-  const flat = parsed ? await prisma.flat.findUnique({ where: { code: parsed.code } }) : null;
+  const flat = await findFlatByCode(body.flat);
+  const facility = await findOrCreateFacility(society.id, body.facility);
+  const bookingDate = parseLooseDate(body.date);
   const created = await prisma.booking.create({
     data: {
       facilityId: facility.id,
-      flatId: flat?.id || null,
-      bookingDate: parseLooseDate(body.date),
-      dateLabel: body.date.trim(),
+      flatId: flat.id,
+      bookingDate,
+      dateLabel: dayLabel(bookingDate),
       slot: body.slot.trim(),
       charge: body.charge?.trim() || "—",
       deposit: body.deposit?.trim() || "—",
@@ -817,6 +830,7 @@ function serializeBooking(row) {
     facility: row.facility.name,
     flat: row.flat?.code || "—",
     date: row.dateLabel,
+    dateIso: row.bookingDate.toISOString().slice(0, 10),
     slot: row.slot,
     charge: row.charge,
     deposit: row.deposit,

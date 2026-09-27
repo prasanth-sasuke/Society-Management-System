@@ -58,6 +58,12 @@ export const CREATE_MODULE = {
   flatEdit: "property",
   residentEdit: "residents",
   billEdit: "billing",
+  ticketEdit: "helpdesk",
+  vendorEdit: "vendors",
+  assetEdit: "vendors",
+  bookingEdit: "facility",
+  bank: "finance",
+  bankEdit: "finance",
 };
 
 export function getToken() {

@@ -119,6 +119,12 @@ export function parseFlatCode(code) {
   };
 }
 
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export function dayLabel(date) {
+  return `${date.getUTCDate()} ${SHORT_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
 export function parseLooseDate(value) {
   if (!value) return new Date();
   const direct = new Date(value);
@@ -129,7 +135,7 @@ export function parseLooseDate(value) {
   };
   const m = String(value).trim().match(/^(\d{1,2})\s+([A-Za-z]{3})(?:\s+(\d{4}))?$/);
   if (m && months[m[2].toLowerCase()] != null) {
-    return new Date(Date.UTC(Number(m[3] || 2026), months[m[2].toLowerCase()], Number(m[1])));
+    return new Date(Date.UTC(Number(m[3] || new Date().getUTCFullYear()), months[m[2].toLowerCase()], Number(m[1])));
   }
   const m2 = String(value).trim().match(/^([A-Za-z]{3})\s+(\d{4})$/);
   if (m2 && months[m2[1].toLowerCase()] != null) {

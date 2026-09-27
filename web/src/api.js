@@ -42,6 +42,22 @@ const CREATE_PATHS = {
   flatEdit: { method: "PATCH", path: (body) => `/api/flats/${encodeURIComponent(body.id)}` },
   residentEdit: { method: "PATCH", path: (body) => `/api/residents/${encodeURIComponent(body.id)}` },
   billEdit: { method: "PATCH", path: (body) => `/api/bills/${encodeURIComponent(body.id)}` },
+  ticketEdit: { method: "PATCH", path: (body) => `/api/tickets/${encodeURIComponent(body.id)}` },
+  vendorEdit: { method: "PATCH", path: (body) => `/api/vendors/${encodeURIComponent(body.id)}` },
+  assetEdit: { method: "PATCH", path: (body) => `/api/assets/${encodeURIComponent(body.id)}` },
+  bookingEdit: { method: "PATCH", path: (body) => `/api/bookings/${encodeURIComponent(body.id)}` },
+  bank: "/api/bank-accounts",
+  bankEdit: { method: "PATCH", path: (body) => `/api/bank-accounts/${encodeURIComponent(body.id)}` },
+};
+
+const DELETE_PATHS = {
+  flat: (id) => `/api/flats/${encodeURIComponent(id)}`,
+  bill: (id) => `/api/bills/${encodeURIComponent(id)}`,
+  ticket: (id) => `/api/tickets/${encodeURIComponent(id)}`,
+  vendor: (id) => `/api/vendors/${encodeURIComponent(id)}`,
+  asset: (id) => `/api/assets/${encodeURIComponent(id)}`,
+  booking: (id) => `/api/bookings/${encodeURIComponent(id)}`,
+  bank: (id) => `/api/bank-accounts/${encodeURIComponent(id)}`,
 };
 
 export class ApiError extends Error {
@@ -142,16 +158,14 @@ export function approveVoucherRequest(id) {
   return request(`/api/vouchers/${encodeURIComponent(id)}/approve`, { method: "POST" });
 }
 
-export function deleteFlatRequest(id) {
-  return request(`/api/flats/${encodeURIComponent(id)}`, { method: "DELETE" });
+export function deleteRecord(kind, id) {
+  const path = DELETE_PATHS[kind];
+  if (!path) throw new Error(`Unknown record type: ${kind}`);
+  return request(path(id), { method: "DELETE" });
 }
 
 export function moveOutResidentRequest(id) {
   return request(`/api/residents/${encodeURIComponent(id)}/move-out`, { method: "POST" });
-}
-
-export function deleteBillRequest(id) {
-  return request(`/api/bills/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function toastForCreate(kind, created) {
@@ -175,5 +189,11 @@ export function toastForCreate(kind, created) {
   if (kind === "flatEdit") return `Flat ${created.flat} updated.`;
   if (kind === "residentEdit") return `${created.name} updated.`;
   if (kind === "billEdit") return `${created.flat} bill for ${created.period} updated.`;
+  if (kind === "ticketEdit") return `${created.id} updated — ${created.status}.`;
+  if (kind === "vendorEdit") return `${created.name} updated.`;
+  if (kind === "assetEdit") return `Asset ${created.tag} updated.`;
+  if (kind === "bookingEdit") return `${created.facility} booking for ${created.flat} on ${created.date} updated.`;
+  if (kind === "bank") return `${created.name} added — balance ${created.balance}.`;
+  if (kind === "bankEdit") return `${created.name} updated — balance ${created.balance}.`;
   return "Saved.";
 }

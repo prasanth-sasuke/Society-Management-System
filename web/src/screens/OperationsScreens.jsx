@@ -1,6 +1,7 @@
-import { Bar, Card, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
+import { Bar, Card, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
 
-export function HelpdeskScreen({ view, onAdd }) {
+export function HelpdeskScreen({ view, onAdd, onEdit, onDelete }) {
+  const hasActions = Boolean(onEdit || onDelete);
   return (
     <>
       <PageHead tag="Module 6 · Complaints & Helpdesk" title="Helpdesk" lead="Residents raise tickets from the app; the manager assigns them to staff or a vendor and closes with resident feedback." action={onAdd ? <PrimaryButton onClick={onAdd}>+ New Complaint</PrimaryButton> : null} />
@@ -11,7 +12,7 @@ export function HelpdeskScreen({ view, onAdd }) {
         <SectionTitle style={{ marginBottom: 20 }}>Ticket queue</SectionTitle>
         <table>
           <thead>
-            <tr><Th>Ticket</Th><Th>Flat</Th><Th>Category</Th><Th>Complaint</Th><Th>Priority</Th><Th>Assigned to</Th><Th>Photos</Th><Th>Status</Th></tr>
+            <tr><Th>Ticket</Th><Th>Flat</Th><Th>Category</Th><Th>Complaint</Th><Th>Priority</Th><Th>Assigned to</Th><Th>Status</Th>{hasActions ? <Th /> : null}</tr>
           </thead>
           <tbody>
             {view.tickets.length ? view.tickets.map((t) => (
@@ -22,10 +23,10 @@ export function HelpdeskScreen({ view, onAdd }) {
                 <Td muted style={{ maxWidth: 280 }}>{t.text}</Td>
                 <Td><Pill bg={t.pbg} fg={t.pfg}>{t.priority}</Pill></Td>
                 <Td>{t.owner}</Td>
-                <Td style={{ color: "#8a8a80", fontSize: 14 }}>{t.photos}</Td>
                 <Td><Pill bg={t.sbg} fg={t.sfg}>{t.status}</Pill></Td>
+                {hasActions ? <Td><EditDelete row={t} onEdit={onEdit} onDelete={onDelete} editLabel="Update" /></Td> : null}
               </tr>
-            )) : <EmptyTableNote colSpan={8}>No helpdesk tickets yet.</EmptyTableNote>}
+            )) : <EmptyTableNote colSpan={hasActions ? 8 : 7}>No helpdesk tickets yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
@@ -41,14 +42,14 @@ export function HelpdeskScreen({ view, onAdd }) {
         </Card>
         <Card>
           <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Recent resident feedback</h2>
-          {view.feedback.map((f) => (
+          {view.feedback.length ? view.feedback.map((f) => (
             <div key={f.who} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
               <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif" }}>
                 <span>{f.who}</span><span style={{ color: "#b8862a" }}>{f.stars}</span>
               </div>
               <div style={{ font: "400 14px/1.5 Lato,sans-serif", color: "#5f5f57", marginTop: 5 }}>{f.note}</div>
             </div>
-          ))}
+          )) : <EmptyNote>No resident feedback yet.</EmptyNote>}
         </Card>
       </div>
     </>
@@ -203,16 +204,21 @@ export function RosterScreen({ view, onPublish }) {
   );
 }
 
-export function VendorsScreen({ view, onAdd }) {
+export function VendorsScreen({ view, onAdd, onEdit, onDelete }) {
+  const hasActions = Boolean(onEdit || onDelete);
+  const count = view.vendors.length;
+  const lead = count
+    ? `${count} empanelled vendor${count === 1 ? "" : "s"}. Contracts, quotations, invoices and renewal dates in one place.`
+    : "Contracts, quotations, invoices and renewal dates in one place.";
   return (
     <>
-      <PageHead tag="Module 10 · Vendor Management" title="Vendors & contracts" lead="Nine empanelled vendors. Contracts, quotations, invoices and renewal dates in one place." action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add Vendor</PrimaryButton> : null} />
+      <PageHead tag="Module 10 · Vendor Management" title="Vendors & contracts" lead={lead} action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add Vendor</PrimaryButton> : null} />
       <Card padding="26px 30px" style={{ marginTop: 30 }}>
         <SectionTitle style={{ marginBottom: 20 }}>Vendor register</SectionTitle>
         <table>
-          <thead><tr><Th>Vendor</Th><Th>Service</Th><Th>Contact</Th><Th>Contract value</Th><Th>Renewal</Th><Th>Payment</Th></tr></thead>
+          <thead><tr><Th>Vendor</Th><Th>Service</Th><Th>Contact</Th><Th>Contract value</Th><Th>Renewal</Th><Th>Payment</Th>{hasActions ? <Th /> : null}</tr></thead>
           <tbody>
-            {view.vendors.map((v) => (
+            {count ? view.vendors.map((v) => (
               <tr key={v.id || v.name}>
                 <Td>{v.name}</Td>
                 <Td muted>{v.service}</Td>
@@ -220,15 +226,16 @@ export function VendorsScreen({ view, onAdd }) {
                 <Td mono>{v.value}</Td>
                 <Td style={{ color: v.rtone }}>{v.renewal}</Td>
                 <Td><Pill bg={v.bg} fg={v.fg}>{v.pay}</Pill></Td>
+                {hasActions ? <Td><EditDelete row={v} onEdit={onEdit} onDelete={onDelete} /></Td> : null}
               </tr>
-            ))}
+            )) : <EmptyTableNote colSpan={hasActions ? 7 : 6}>No vendors yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, marginTop: 22 }}>
         <Card>
           <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Open quotations</h2>
-          {view.quotes.map((q) => (
+          {view.quotes.length ? view.quotes.map((q) => (
             <div key={q.work} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
               <div>
                 <div style={{ font: "400 15px Lato,sans-serif" }}>{q.work}</div>
@@ -236,11 +243,11 @@ export function VendorsScreen({ view, onAdd }) {
               </div>
               <div style={{ font: "700 15px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{q.range}</div>
             </div>
-          ))}
+          )) : <EmptyNote>No open quotations.</EmptyNote>}
         </Card>
         <Card>
           <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Invoices awaiting payment</h2>
-          {view.invoices.map((i) => (
+          {view.invoices.length ? view.invoices.map((i) => (
             <div key={i.no} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
               <div>
                 <div style={{ font: "400 15px Lato,sans-serif" }}>{i.no}</div>
@@ -251,14 +258,15 @@ export function VendorsScreen({ view, onAdd }) {
                 <div style={{ font: "400 13px Lato,sans-serif", color: i.tone, marginTop: 3 }}>{i.due}</div>
               </div>
             </div>
-          ))}
+          )) : <EmptyNote>No invoices awaiting payment.</EmptyNote>}
         </Card>
       </div>
     </>
   );
 }
 
-export function AssetsScreen({ view, onAdd }) {
+export function AssetsScreen({ view, onAdd, onEdit, onDelete }) {
+  const hasActions = Boolean(onEdit || onDelete);
   return (
     <>
       <PageHead tag="Module 11 · Asset Management" title="Asset register" lead="Every tagged asset with its location, purchase year, warranty and current condition." action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add Asset</PrimaryButton> : null} />
@@ -267,9 +275,9 @@ export function AssetsScreen({ view, onAdd }) {
       </div>
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <table>
-          <thead><tr><Th>Tag</Th><Th>Asset</Th><Th>Category</Th><Th>Location</Th><Th>Installed</Th><Th>Warranty / AMC</Th><Th>Condition</Th></tr></thead>
+          <thead><tr><Th>Tag</Th><Th>Asset</Th><Th>Category</Th><Th>Location</Th><Th>Installed</Th><Th>Warranty / AMC</Th><Th>Condition</Th>{hasActions ? <Th /> : null}</tr></thead>
           <tbody>
-            {view.assets.map((a) => (
+            {view.assets.length ? view.assets.map((a) => (
               <tr key={a.id || a.tag}>
                 <Td mono style={{ fontSize: 14 }}>{a.tag}</Td>
                 <Td>{a.name}</Td>
@@ -278,8 +286,9 @@ export function AssetsScreen({ view, onAdd }) {
                 <Td>{a.installed}</Td>
                 <Td muted>{a.amc}</Td>
                 <Td><Pill bg={a.bg} fg={a.fg}>{a.condition}</Pill></Td>
+                {hasActions ? <Td><EditDelete row={a} onEdit={onEdit} onDelete={onDelete} /></Td> : null}
               </tr>
-            ))}
+            )) : <EmptyTableNote colSpan={hasActions ? 8 : 7}>No assets tagged yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
@@ -335,11 +344,17 @@ export function PpmScreen({ view }) {
   );
 }
 
-export function FacilityScreen({ view, onAdd }) {
+export function FacilityScreen({ view, onAdd, onEdit, onDelete }) {
+  const hasActions = Boolean(onEdit || onDelete);
   return (
     <>
       <PageHead tag="Module 13 · Facility Booking" title="Facility booking" lead="Residents book slots in the app; charges and refundable deposits post straight to the flat's ledger." action={onAdd ? <PrimaryButton onClick={onAdd}>+ New Booking</PrimaryButton> : null} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 22, marginTop: 30 }}>
+        {view.facilities.length ? null : (
+          <Card padding="22px 24px" style={{ gridColumn: "1 / -1" }}>
+            <EmptyNote>No facilities yet. A facility appears here after its first booking.</EmptyNote>
+          </Card>
+        )}
         {view.facilities.map((f) => (
           <Card key={f.name} padding="22px 24px">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -356,9 +371,9 @@ export function FacilityScreen({ view, onAdd }) {
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <SectionTitle style={{ marginBottom: 20 }}>Upcoming bookings</SectionTitle>
         <table>
-          <thead><tr><Th>Facility</Th><Th>Flat</Th><Th>Date</Th><Th>Slot</Th><Th>Charge</Th><Th>Deposit</Th><Th>Payment</Th></tr></thead>
+          <thead><tr><Th>Facility</Th><Th>Flat</Th><Th>Date</Th><Th>Slot</Th><Th>Charge</Th><Th>Deposit</Th><Th>Payment</Th>{hasActions ? <Th /> : null}</tr></thead>
           <tbody>
-            {view.bookings.map((b, i) => (
+            {view.bookings.length ? view.bookings.map((b, i) => (
               <tr key={b.id || `${b.facility}-${b.flat}-${b.date}-${i}`}>
                 <Td>{b.facility}</Td>
                 <Td mono>{b.flat}</Td>
@@ -367,8 +382,9 @@ export function FacilityScreen({ view, onAdd }) {
                 <Td mono>{b.charge}</Td>
                 <Td mono muted>{b.deposit}</Td>
                 <Td><Pill bg={b.bg} fg={b.fg}>{b.pay}</Pill></Td>
+                {hasActions ? <Td><EditDelete row={b} onEdit={onEdit} onDelete={onDelete} deleteLabel="Cancel" /></Td> : null}
               </tr>
-            ))}
+            )) : <EmptyTableNote colSpan={hasActions ? 8 : 7}>No bookings yet.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>

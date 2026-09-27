@@ -17,3 +17,19 @@ export async function findFlatByCode(code) {
   if (!flat) throw new AppError(400, `Unknown flat: ${code}`);
   return flat;
 }
+
+export async function findOrCreateFacility(societyId, name, db = prisma) {
+  const clean = String(name).trim();
+  const existing = await db.facility.findFirst({
+    where: { societyId, name: { equals: clean, mode: "insensitive" } },
+  });
+  if (existing) return existing;
+  try {
+    return await db.facility.create({
+      data: { societyId, name: clean, capacityNote: "—", chargeNote: "—", nextNote: "—", status: "AVAILABLE" },
+    });
+  } catch (err) {
+    if (err?.code !== "P2002") throw err;
+    return db.facility.findFirst({ where: { societyId, name: { equals: clean, mode: "insensitive" } } });
+  }
+}

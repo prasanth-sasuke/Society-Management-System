@@ -4,9 +4,12 @@ import { asyncHandler } from "./http.js";
 import { requireAuth, requirePermission } from "./auth/middleware.js";
 import {
   assetCreateSchema,
+  assetUpdateSchema,
+  bankAccountSchema,
   billGenerateSchema,
   billUpdateSchema,
   bookingCreateSchema,
+  bookingUpdateSchema,
   flatCreateSchema,
   flatUpdateSchema,
   loginSchema,
@@ -14,8 +17,10 @@ import {
   residentCreateSchema,
   residentUpdateSchema,
   ticketCreateSchema,
+  ticketUpdateSchema,
   validate,
   vendorCreateSchema,
+  vendorUpdateSchema,
   userCreateSchema,
   voucherCreateSchema,
 } from "./validate.js";
@@ -23,6 +28,7 @@ import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
 import * as billing from "./services/billing.js";
 import * as records from "./services/records.js";
+import * as operations from "./services/operations.js";
 
 export const api = Router();
 
@@ -141,6 +147,18 @@ api.post("/vouchers/:id/approve", requireAuth, requirePermission("finance", "wri
   res.json(await billing.approveVoucher(req.params.id));
 }));
 
+api.post("/bank-accounts", requireAuth, requirePermission("finance", "write"), validate(bankAccountSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await operations.createBankAccount(req.body));
+}));
+
+api.patch("/bank-accounts/:id", requireAuth, requirePermission("finance", "write"), validate(bankAccountSchema), asyncHandler(async (req, res) => {
+  res.json(await operations.updateBankAccount(req.params.id, req.body));
+}));
+
+api.delete("/bank-accounts/:id", requireAuth, requirePermission("finance", "write"), asyncHandler(async (req, res) => {
+  res.json(await operations.deleteBankAccount(req.params.id));
+}));
+
 api.get("/tickets", ...authRead("helpdesk", async (_req, res) => {
   res.json(await catalog.listTickets());
 }));
@@ -151,6 +169,14 @@ api.get("/tickets/:ticketNo", ...authRead("helpdesk", async (req, res) => {
 
 api.post("/tickets", requireAuth, requirePermission("helpdesk", "write"), validate(ticketCreateSchema), asyncHandler(async (req, res) => {
   res.status(201).json(await catalog.createTicket(req.body));
+}));
+
+api.patch("/tickets/:id", requireAuth, requirePermission("helpdesk", "write"), validate(ticketUpdateSchema), asyncHandler(async (req, res) => {
+  res.json(await operations.updateTicket(req.params.id, req.body));
+}));
+
+api.delete("/tickets/:id", requireAuth, requirePermission("helpdesk", "write"), asyncHandler(async (req, res) => {
+  res.json(await operations.deleteTicket(req.params.id));
 }));
 
 api.get("/staff", ...authRead("staff", async (_req, res) => {
@@ -173,6 +199,14 @@ api.post("/vendors", requireAuth, requirePermission("vendors", "write"), validat
   res.status(201).json(await catalog.createVendor(req.body));
 }));
 
+api.patch("/vendors/:id", requireAuth, requirePermission("vendors", "write"), validate(vendorUpdateSchema), asyncHandler(async (req, res) => {
+  res.json(await operations.updateVendor(req.params.id, req.body));
+}));
+
+api.delete("/vendors/:id", requireAuth, requirePermission("vendors", "write"), asyncHandler(async (req, res) => {
+  res.json(await operations.deleteVendor(req.params.id));
+}));
+
 api.get("/quotations", ...authRead("vendors", async (_req, res) => {
   res.json(await catalog.listQuotations());
 }));
@@ -187,6 +221,14 @@ api.get("/assets", ...authRead("vendors", async (_req, res) => {
 
 api.post("/assets", requireAuth, requirePermission("vendors", "write"), validate(assetCreateSchema), asyncHandler(async (req, res) => {
   res.status(201).json(await catalog.createAsset(req.body));
+}));
+
+api.patch("/assets/:id", requireAuth, requirePermission("vendors", "write"), validate(assetUpdateSchema), asyncHandler(async (req, res) => {
+  res.json(await operations.updateAsset(req.params.id, req.body));
+}));
+
+api.delete("/assets/:id", requireAuth, requirePermission("vendors", "write"), asyncHandler(async (req, res) => {
+  res.json(await operations.deleteAsset(req.params.id));
 }));
 
 api.get("/amc", ...authRead("vendors", async (_req, res) => {
@@ -211,6 +253,14 @@ api.get("/bookings", ...authRead("facility", async (_req, res) => {
 
 api.post("/bookings", requireAuth, requirePermission("facility", "write"), validate(bookingCreateSchema), asyncHandler(async (req, res) => {
   res.status(201).json(await catalog.createBooking(req.body));
+}));
+
+api.patch("/bookings/:id", requireAuth, requirePermission("facility", "write"), validate(bookingUpdateSchema), asyncHandler(async (req, res) => {
+  res.json(await operations.updateBooking(req.params.id, req.body));
+}));
+
+api.delete("/bookings/:id", requireAuth, requirePermission("facility", "write"), asyncHandler(async (req, res) => {
+  res.json(await operations.deleteBooking(req.params.id));
 }));
 
 api.get("/security", ...authRead("security", async (_req, res) => {

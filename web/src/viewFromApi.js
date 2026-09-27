@@ -220,7 +220,8 @@ export function buildViewFromApi(catalog, permissions = {}) {
   const roster = catalog.roster || {};
   const openTickets = tickets.filter((row) => row.status !== "Resolved");
   const highOpen = openTickets.filter((row) => row.priority === "High");
-  const trailSource = tickets.find((row) => (row.events || []).length) || tickets[0];
+  const lastEventAt = (row) => (row.events || []).reduce((latest, e) => (e.when > latest ? e.when : latest), "");
+  const trailSource = tickets.reduce((best, row) => (!best || lastEventAt(row) > lastEventAt(best) ? row : best), null);
   const occupiedNote = `${occupancy.occupied} / ${occupancy.total}`;
   const occupancyPct = occupancy.total ? ((occupancy.occupied / occupancy.total) * 100).toFixed(1) : "0.0";
 
@@ -359,6 +360,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
     tickets,
     trailTicket: trailSource?.id || "—",
     trail: (trailSource?.events || []).map((row) => ({ when: formatStamp(row.when), what: row.what })),
+    feedback: [],
     shifts: (security.shifts || []).map((row) => {
       const state = titleCase(row.state);
       return { ...row, state, ...tone(shiftTone(state)) };

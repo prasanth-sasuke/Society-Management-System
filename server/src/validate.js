@@ -59,9 +59,9 @@ export const userCreateSchema = z.object({
 });
 
 export const bookingCreateSchema = z.object({
-  facility: z.string().trim().min(1),
+  facility: z.string().trim().min(1).max(60),
   flat: z.string().trim().min(1),
-  date: z.string().trim().min(1),
+  date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
   slot: z.string().trim().min(1),
   charge: z.string().optional(),
   deposit: z.string().optional(),
@@ -111,6 +111,23 @@ export const billUpdateSchema = z.object({
   amount: positiveAmount,
   special: amount.optional().default(0),
   dueOn: isoDate,
+});
+
+export const ticketUpdateSchema = ticketCreateSchema.omit({ flat: true }).extend({
+  status: z.string().trim().min(1),
+  note: z.string().trim().max(300).optional(),
+});
+
+export const vendorUpdateSchema = vendorCreateSchema;
+
+export const assetUpdateSchema = assetCreateSchema.omit({ tag: true });
+
+export const bookingUpdateSchema = bookingCreateSchema;
+
+export const bankAccountSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  meta: z.string().trim().max(120).optional().default(""),
+  balance: amount,
 });
 
 export function validate(schema) {

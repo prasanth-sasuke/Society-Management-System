@@ -195,6 +195,32 @@ export function EmptyTableNote({ colSpan, children }) {
   );
 }
 
+export const rowButton = {
+  border: "1px solid #cfe0d6",
+  background: "#fff",
+  cursor: "pointer",
+  borderRadius: 7,
+  padding: "6px 12px",
+  font: "700 13px Lato,sans-serif",
+  color: "#1e6b52",
+  whiteSpace: "nowrap",
+};
+
+export const dangerButton = { ...rowButton, border: "1px solid #f0cdb8", color: "#b0491a" };
+
+export function RowActions({ children }) {
+  return <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>{children}</div>;
+}
+
+export function EditDelete({ row, onEdit, onDelete, editLabel = "Edit", deleteLabel = "Delete" }) {
+  return (
+    <RowActions>
+      {onEdit ? <button type="button" style={rowButton} onClick={() => onEdit(row)}>{editLabel}</button> : null}
+      {onDelete ? <button type="button" style={dangerButton} onClick={() => onDelete(row)}>{deleteLabel}</button> : null}
+    </RowActions>
+  );
+}
+
 export function Bar({ pct, color }) {
   return (
     <div style={{ height: 7, borderRadius: 4, background: "#efece3", overflow: "hidden" }}>
