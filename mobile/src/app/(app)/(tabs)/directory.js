@@ -6,7 +6,7 @@ import { TextField } from '../../../components/fields';
 import { Loading, Notice } from '../../../components/ui';
 import { plural } from '../../../format';
 import { useApi } from '../../../hooks/useApi';
-import { colors, radius, type } from '../../../theme';
+import { colors, layout, radius, type } from '../../../theme';
 
 function matches(resident, query) {
   const q = query.trim().toLowerCase();
@@ -35,7 +35,7 @@ export default function Directory() {
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
+      contentContainerStyle={[{ padding: 16, gap: 10, paddingBottom: 32 }, layout.content]}
       data={shown}
       keyExtractor={(r) => r.id}
       ListHeaderComponent={header}

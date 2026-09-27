@@ -16,6 +16,11 @@ export const colors = {
 
 export const radius = { card: 14, control: 10 };
 
+// Keeps forms and lists readable on tablets instead of stretching edge to edge.
+export const layout = {
+  content: { width: '100%', maxWidth: 760, alignSelf: 'center' },
+};
+
 export const type = {
   kicker: { fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.faint },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },

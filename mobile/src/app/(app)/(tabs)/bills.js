@@ -8,7 +8,7 @@ import { Kpi, KpiGrid, Loading, Notice } from '../../../components/ui';
 import { BILL_FILTERS, billTone, filterBills } from '../../../features/bills';
 import { plural, rupees } from '../../../format';
 import { useApi } from '../../../hooks/useApi';
-import { colors, radius, type } from '../../../theme';
+import { colors, layout, radius, type } from '../../../theme';
 
 export default function Bills() {
   const { session } = useSession();
@@ -52,7 +52,8 @@ export default function Bills() {
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
+      contentContainerStyle={[{ padding: 16, gap: 10, paddingBottom: 32 }, layout.content]}
+      keyboardShouldPersistTaps="handled"
       data={shown}
       keyExtractor={(bill) => bill.id}
       ListHeaderComponent={header}

@@ -8,7 +8,7 @@ import { Button, Loading, Notice } from '../../../components/ui';
 import { TICKET_FILTERS, filterTickets, priorityTone, statusTone } from '../../../features/tickets';
 import { useApi } from '../../../hooks/useApi';
 import { canWrite } from '../../../modules';
-import { colors, radius, type } from '../../../theme';
+import { colors, layout, radius, type } from '../../../theme';
 
 export default function Helpdesk() {
   const { session } = useSession();
@@ -50,7 +50,8 @@ export default function Helpdesk() {
   return (
     <FlatList
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
+      contentContainerStyle={[{ padding: 16, gap: 10, paddingBottom: 32 }, layout.content]}
+      keyboardShouldPersistTaps="handled"
       data={shown}
       keyExtractor={(t) => t.id}
       ListHeaderComponent={header}

@@ -1,11 +1,12 @@
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, type } from '../theme';
+import { colors, layout, radius, type } from '../theme';
 
 export function Screen({ children, refreshing = false, onRefresh }) {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, layout.content]}
+      keyboardShouldPersistTaps="handled"
       refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.green]} /> : undefined}
     >
       {children}
