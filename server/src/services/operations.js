@@ -13,7 +13,7 @@ import {
   parseCount,
   parseLooseDate,
 } from "../labels.js";
-import { findFlatByCode, findOrCreateFacility, getSociety } from "./society.js";
+import { assertSlotFree, findFlatByCode, findOrCreateFacility, getSociety } from "./society.js";
 import { assertFlatAccess, requireOwnFlat } from "../auth/scope.js";
 
 function optionalText(value) {
@@ -125,6 +125,7 @@ export async function updateBooking(id, body, user) {
 
   const updated = await prisma.$transaction(async (tx) => {
     const facility = await findOrCreateFacility(society.id, body.facility, tx);
+    await assertSlotFree(tx, { facility, bookingDate, slot: body.slot, exceptId: id });
     const row = await tx.booking.update({
       where: { id },
       data: {

@@ -23,7 +23,7 @@ import {
   dayLabel,
   societyNow,
 } from "../labels.js";
-import { getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
+import { assertSlotFree, getSociety, findFlatByCode, findOrCreateFacility } from "./society.js";
 import { accruePenalties } from "./billing.js";
 import { canWrite } from "../auth/permissions.js";
 import { flatScope, requireOwnFlat, vendorScope } from "../auth/scope.js";
@@ -663,6 +663,7 @@ export async function createBooking(input, user) {
   const flat = await findFlatByCode(body.flat);
   const facility = await findOrCreateFacility(society.id, body.facility);
   const bookingDate = parseLooseDate(body.date);
+  await assertSlotFree(prisma, { facility, bookingDate, slot: body.slot });
   const created = await prisma.booking.create({
     data: {
       facilityId: facility.id,
