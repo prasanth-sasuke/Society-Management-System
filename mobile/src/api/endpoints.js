@@ -42,4 +42,7 @@ export const endpoints = {
   tickets: '/api/tickets',
   ticket: (ticketNo) => `/api/tickets/${encodeURIComponent(ticketNo)}`,
   ticketUpdate: (dbId) => `/api/tickets/${encodeURIComponent(dbId)}`,
+  residents: '/api/residents',
+  finance: '/api/finance',
+  voucherApprove: (id) => `/api/vouchers/${encodeURIComponent(id)}/approve`,
 };

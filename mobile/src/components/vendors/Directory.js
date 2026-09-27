@@ -1,9 +1,7 @@
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '../ui';
-import { colors, radius, type } from '../../theme';
-import { Empty, Item } from '../common';
-
-const dial = (phone) => Linking.openURL(`tel:${String(phone).replace(/[^\d+]/g, '')}`).catch(() => {});
+import { colors, type } from '../../theme';
+import { CallButton, Empty, Item } from '../common';
 
 export function VendorList({ vendors }) {
   if (!vendors.length) return <Empty>No vendors yet. Add them from the web app.</Empty>;
@@ -16,11 +14,7 @@ export function VendorList({ vendors }) {
             <Text style={type.small}>{v.service} · {v.value}{v.renewal !== '—' ? ` · renews ${v.renewal}` : ''}</Text>
             <Text style={[type.small, { color: String(v.pay).toLowerCase().includes('due') ? colors.rust : colors.faint }]}>{v.pay}</Text>
           </View>
-          {v.phone ? (
-            <Pressable onPress={() => dial(v.phone)} style={styles.call} accessibilityLabel={`Call ${v.name}`}>
-              <Text style={styles.callText}>Call</Text>
-            </Pressable>
-          ) : null}
+          <CallButton phone={v.phone} name={v.name} />
         </Card>
       ))}
     </View>
@@ -57,6 +51,4 @@ export function Reminders({ reminders }) {
 
 const styles = StyleSheet.create({
   vendor: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  call: { backgroundColor: colors.green, borderRadius: radius.control, paddingHorizontal: 16, paddingVertical: 10 },
-  callText: { color: '#fff', fontWeight: '700' },
 });

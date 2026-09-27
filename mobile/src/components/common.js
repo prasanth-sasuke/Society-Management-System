@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { apiRequest } from '../api/client';
 import { colors, radius, type } from '../theme';
 
@@ -51,6 +51,16 @@ export function FieldLabel({ children }) {
   return <Text style={{ fontSize: 13, color: colors.muted }}>{children}</Text>;
 }
 
+export function CallButton({ phone, name }) {
+  const digits = String(phone || '').replace(/[^\d+]/g, '');
+  if (!digits) return null;
+  return (
+    <Pressable onPress={() => Linking.openURL(`tel:${digits}`).catch(() => {})} style={styles.call} accessibilityLabel={`Call ${name}`}>
+      <Text style={styles.callText}>Call</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
@@ -64,4 +74,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: '600', color: colors.text },
   meta: { fontSize: 13, fontWeight: '700', maxWidth: '45%', textAlign: 'right' },
+  call: { backgroundColor: colors.green, borderRadius: radius.control, paddingHorizontal: 16, paddingVertical: 10 },
+  callText: { color: '#fff', fontWeight: '700' },
 });
