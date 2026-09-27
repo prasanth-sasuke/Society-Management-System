@@ -17,10 +17,11 @@ export function Chips({ options, value, onChange }) {
   return (
     <View style={styles.chips}>
       {options.map((option) => {
-        const active = option === value;
+        const opt = typeof option === 'string' ? { value: option, label: option } : option;
+        const active = opt.value === value;
         return (
-          <Pressable key={option} onPress={() => onChange(option)} style={[styles.chip, active && styles.chipActive]}>
-            <Text style={[styles.chipText, active && { color: '#fff' }]}>{option}</Text>
+          <Pressable key={opt.value} onPress={() => onChange(opt.value)} style={[styles.chip, active && styles.chipActive]}>
+            <Text style={[styles.chipText, active && { color: '#fff' }]}>{opt.label}</Text>
           </Pressable>
         );
       })}
