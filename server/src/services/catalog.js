@@ -130,8 +130,8 @@ export async function getDashboard() {
       where: { societyId: society.id },
       _sum: { salary: true },
     }),
-    prisma.vendorInvoice.aggregate({ _sum: { amount: true } }),
-    prisma.vendorInvoice.count(),
+    prisma.vendorInvoice.aggregate({ where: { paidOn: null }, _sum: { amount: true } }),
+    prisma.vendorInvoice.count({ where: { paidOn: null } }),
     prisma.staffMember.count({ where: { societyId: society.id } }),
     prisma.vendor.count({ where: { societyId: society.id } }),
     prisma.payment.findMany({
@@ -543,25 +543,6 @@ export async function createVendor(body) {
   return serializeVendor(created);
 }
 
-export async function listQuotations() {
-  const society = await getSociety();
-  return prisma.quotation.findMany({ where: { societyId: society.id } }).then((rows) =>
-    rows.map((q) => ({ id: q.id, work: q.work, vendors: q.vendorsNote, range: q.rangeNote })),
-  );
-}
-
-export async function listInvoices() {
-  const rows = await prisma.vendorInvoice.findMany({ include: { vendor: true }, orderBy: { invoiceNo: "asc" } });
-  return rows.map((i) => ({
-    id: i.id,
-    no: i.invoiceNo,
-    who: i.description,
-    amount: inr(i.amount),
-    amountValue: money(i.amount),
-    due: i.dueNote,
-  }));
-}
-
 export async function listAssets() {
   const society = await getSociety();
   const rows = await prisma.asset.findMany({ where: { societyId: society.id }, orderBy: { tag: "asc" } });
@@ -583,40 +564,6 @@ export async function createAsset(body) {
     },
   });
   return serializeAsset(created);
-}
-
-export async function listAmc() {
-  const society = await getSociety();
-  const rows = await prisma.amcContract.findMany({
-    where: { societyId: society.id },
-    include: { vendor: true },
-    orderBy: { nextOn: "asc" },
-  });
-  return rows.map((a) => ({
-    id: a.id,
-    equip: a.equipment,
-    vendor: a.vendor?.name || "In-house",
-    freq: a.frequency,
-    next: a.nextOn.toISOString().slice(0, 10),
-    status: a.status.replaceAll("_", " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase()),
-  }));
-}
-
-export async function listReminders() {
-  const society = await getSociety();
-  return prisma.maintenanceReminder.findMany({ where: { societyId: society.id } }).then((rows) =>
-    rows.map((r) => ({ id: r.id, what: r.what, when: r.whenLabel })),
-  );
-}
-
-export async function listBreakdowns() {
-  const rows = await prisma.breakdownEvent.findMany({ orderBy: { happenedOn: "desc" } });
-  return rows.map((b) => ({
-    id: b.id,
-    what: b.what,
-    when: b.happenedOn.toISOString().slice(0, 10),
-    note: b.note,
-  }));
 }
 
 export async function listFacilities() {

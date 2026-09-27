@@ -213,6 +213,36 @@ export const incidentSchema = z.object({
   status: text(30),
 });
 
+const optionalIsoDate = z.union([isoDate, z.literal("")]).optional().default("");
+
+export const quotationSchema = z.object({
+  work: text(160),
+  vendors: optionalText(200),
+  range: optionalText(60),
+});
+
+export const invoiceSchema = z.object({
+  vendor: optionalText(60),
+  no: text(40),
+  description: text(200),
+  amount: positiveAmount,
+  dueOn: optionalIsoDate,
+});
+
+export const amcSchema = z.object({
+  equipment: text(120),
+  vendor: optionalText(60),
+  frequency: text(20),
+  nextOn: isoDate,
+});
+
+export const breakdownSchema = z.object({
+  asset: optionalText(60),
+  what: text(200),
+  date: isoDate,
+  note: optionalText(500),
+});
+
 export function validate(schema) {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);

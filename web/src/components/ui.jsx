@@ -212,6 +212,15 @@ export function RowActions({ children }) {
   return <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>{children}</div>;
 }
 
+export function CardHead({ title, children }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+      <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: 0 }}>{title}</h2>
+      {children ? <RowActions>{children}</RowActions> : null}
+    </div>
+  );
+}
+
 export function EditDelete({ row, onEdit, onDelete, editLabel = "Edit", deleteLabel = "Delete" }) {
   return (
     <RowActions>

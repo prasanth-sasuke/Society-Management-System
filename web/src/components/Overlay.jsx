@@ -64,11 +64,14 @@ export default function ModalForm({ cfg, form, error, submitting, onChange, onCl
                     width: "100%",
                   }}
                 >
-                  {f.options.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
+                  {f.options.map((o) => {
+                    const opt = typeof o === "string" ? { value: o, label: o } : o;
+                    return (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    );
+                  })}
                 </select>
               ) : (
                 <input

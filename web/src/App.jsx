@@ -11,13 +11,15 @@ import {
   formatApiError,
   loginRequest,
   logoutRequest,
+  amcServicedRequest,
   moveOutResidentRequest,
+  payInvoiceRequest,
   resetPatrolRequest,
   saveAttendance,
   toastForCreate,
 } from "./api.js";
 import { CREATE_MODULE, canOpenScreen, canWrite, clearToken, getToken, setToken } from "./auth.js";
-import { DEFAULT_SETTINGS, emptyForm, MODALS } from "./data.js";
+import { DEFAULT_SETTINGS, emptyForm, MODALS, resolveModal } from "./data.js";
 import { buildViewFromApi } from "./viewFromApi.js";
 import LoginScreen from "./screens/LoginScreen.jsx";
 import {
@@ -167,7 +169,7 @@ export default function App() {
 
   function openModal(kind, preset = {}) {
     if (!canWrite(permissions, CREATE_MODULE[kind])) return;
-    setForm({ ...emptyForm(kind), ...preset });
+    setForm({ ...emptyForm(kind, view), ...preset });
     setFormError(null);
     setModal(kind);
   }
@@ -414,6 +416,41 @@ export default function App() {
     removeFollowUp: (row) => removeRecord("followUp", row.id, `Delete the follow-up "${row.task}"?`, (r) => `Follow-up deleted: ${r.task}.`),
   };
 
+  const vendorExtras = {
+    addQuote: () => openModal("quotation"),
+    editQuote: (row) => openModal("quotationEdit", { id: row.id, work: row.work, vendors: blankDash(row.vendors), range: blankDash(row.range) }),
+    removeQuote: (row) => removeRecord("quotation", row.id, `Delete the quotation for "${row.work}"?`, (r) => `Quotation deleted: ${r.work}.`),
+    addInvoice: () => openModal("invoice"),
+    editInvoice: (row) => openModal("invoiceEdit", {
+      id: row.id,
+      vendor: row.vendorId,
+      no: row.no,
+      description: row.description,
+      amount: String(row.amountValue ?? ""),
+      dueOn: row.dueIso,
+    }),
+    removeInvoice: (row) => removeRecord("invoice", row.id, `Delete invoice ${row.no}?`, (r) => `Invoice ${r.no} deleted.`),
+    payInvoice: canWrite(permissions, "finance")
+      ? (row) => {
+        if (!window.confirm(`Mark invoice ${row.no} (${row.amount}) as paid today? An approved expense voucher is created for it.`)) return;
+        runAction(() => payInvoiceRequest(row.id), (r) => `Invoice ${r.no} paid — voucher ${r.voucher} added (${r.amount}).`);
+      }
+      : null,
+  };
+
+  const maintenanceActions = {
+    addAmc: () => openModal("amc"),
+    editAmc: (row) => openModal("amcEdit", { id: row.id, equipment: row.equip, vendor: row.vendorId, frequency: row.freq, nextOn: row.nextIso }),
+    removeAmc: (row) => removeRecord("amc", row.id, `Delete the AMC contract for ${row.equip}?`, (r) => `AMC contract for ${r.equip} deleted.`),
+    serviced: (row) => {
+      if (!window.confirm(`Mark ${row.equip} as serviced today? The next service moves ahead by one ${row.freq.toLowerCase()} cycle.`)) return;
+      runAction(() => amcServicedRequest(row.id), (r) => `${r.equip} serviced — next service ${r.next}.`);
+    },
+    addBreakdown: () => openModal("breakdown"),
+    editBreakdown: (row) => openModal("breakdownEdit", { id: row.id, asset: row.assetId, what: row.what, date: row.when, note: row.note }),
+    removeBreakdown: (row) => removeRecord("breakdown", row.id, `Delete the breakdown "${row.what}"?`, (r) => `Breakdown deleted: ${r.what}.`),
+  };
+
   const securityActions = {
     addShift: () => openModal("shift"),
     editShift: (row) => openModal("shiftEdit", { id: row.id, name: row.name, start: row.start, end: row.end, staff: blankDash(row.staff) }),
@@ -554,6 +591,7 @@ export default function App() {
         onAdd={write("vendors") ? () => openModal("vendor") : null}
         onEdit={write("vendors") ? editVendor : null}
         onDelete={write("vendors") ? deleteVendor : null}
+        extras={write("vendors") ? vendorExtras : null}
       />
     ),
     assets: (
@@ -564,7 +602,7 @@ export default function App() {
         onDelete={write("vendors") ? deleteAsset : null}
       />
     ),
-    ppm: <PpmScreen view={view} />,
+    ppm: <PpmScreen view={view} actions={write("vendors") ? maintenanceActions : null} />,
     facility: (
       <FacilityScreen
         view={view}
@@ -632,7 +670,7 @@ export default function App() {
         )}
       </main>
       <ModalForm
-        cfg={modal ? MODALS[modal] : null}
+        cfg={modal ? resolveModal(modal, view) : null}
         form={form}
         error={formError}
         submitting={submitting}

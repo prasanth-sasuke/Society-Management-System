@@ -79,6 +79,14 @@ export const CREATE_MODULE = {
   patrolEdit: "security",
   incident: "security",
   incidentEdit: "security",
+  quotation: "vendors",
+  quotationEdit: "vendors",
+  invoice: "vendors",
+  invoiceEdit: "vendors",
+  amc: "vendors",
+  amcEdit: "vendors",
+  breakdown: "vendors",
+  breakdownEdit: "vendors",
 };
 
 export function getToken() {

@@ -33,6 +33,10 @@ import {
   patrolPointSchema,
   patrolUpdateSchema,
   incidentSchema,
+  quotationSchema,
+  invoiceSchema,
+  amcSchema,
+  breakdownSchema,
 } from "./validate.js";
 import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
@@ -41,6 +45,7 @@ import * as records from "./services/records.js";
 import * as operations from "./services/operations.js";
 import * as staffing from "./services/staffing.js";
 import * as security from "./services/security.js";
+import * as maintenance from "./services/maintenance.js";
 
 export const api = Router();
 
@@ -268,11 +273,39 @@ api.delete("/vendors/:id", requireAuth, requirePermission("vendors", "write"), a
 }));
 
 api.get("/quotations", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listQuotations());
+  res.json(await maintenance.listQuotations());
+}));
+
+api.post("/quotations", ...authWrite("vendors", quotationSchema, async (req, res) => {
+  res.status(201).json(await maintenance.createQuotation(req.body));
+}));
+
+api.patch("/quotations/:id", ...authWrite("vendors", quotationSchema, async (req, res) => {
+  res.json(await maintenance.updateQuotation(req.params.id, req.body));
+}));
+
+api.delete("/quotations/:id", ...authWrite("vendors", null, async (req, res) => {
+  res.json(await maintenance.deleteQuotation(req.params.id));
 }));
 
 api.get("/invoices", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listInvoices());
+  res.json(await maintenance.listInvoices());
+}));
+
+api.post("/invoices", ...authWrite("vendors", invoiceSchema, async (req, res) => {
+  res.status(201).json(await maintenance.createInvoice(req.body));
+}));
+
+api.patch("/invoices/:id", ...authWrite("vendors", invoiceSchema, async (req, res) => {
+  res.json(await maintenance.updateInvoice(req.params.id, req.body));
+}));
+
+api.delete("/invoices/:id", ...authWrite("vendors", null, async (req, res) => {
+  res.json(await maintenance.deleteInvoice(req.params.id));
+}));
+
+api.post("/invoices/:id/pay", requireAuth, requirePermission("vendors", "write"), requirePermission("finance", "write"), asyncHandler(async (req, res) => {
+  res.json(await maintenance.payInvoice(req.params.id));
 }));
 
 api.get("/assets", ...authRead("vendors", async (_req, res) => {
@@ -292,15 +325,43 @@ api.delete("/assets/:id", requireAuth, requirePermission("vendors", "write"), as
 }));
 
 api.get("/amc", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listAmc());
+  res.json(await maintenance.listAmc());
+}));
+
+api.post("/amc", ...authWrite("vendors", amcSchema, async (req, res) => {
+  res.status(201).json(await maintenance.createAmc(req.body));
+}));
+
+api.patch("/amc/:id", ...authWrite("vendors", amcSchema, async (req, res) => {
+  res.json(await maintenance.updateAmc(req.params.id, req.body));
+}));
+
+api.delete("/amc/:id", ...authWrite("vendors", null, async (req, res) => {
+  res.json(await maintenance.deleteAmc(req.params.id));
+}));
+
+api.post("/amc/:id/serviced", ...authWrite("vendors", null, async (req, res) => {
+  res.json(await maintenance.markAmcServiced(req.params.id));
 }));
 
 api.get("/reminders", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listReminders());
+  res.json(await maintenance.listReminders());
 }));
 
 api.get("/breakdowns", ...authRead("vendors", async (_req, res) => {
-  res.json(await catalog.listBreakdowns());
+  res.json(await maintenance.listBreakdowns());
+}));
+
+api.post("/breakdowns", ...authWrite("vendors", breakdownSchema, async (req, res) => {
+  res.status(201).json(await maintenance.createBreakdown(req.body));
+}));
+
+api.patch("/breakdowns/:id", ...authWrite("vendors", breakdownSchema, async (req, res) => {
+  res.json(await maintenance.updateBreakdown(req.params.id, req.body));
+}));
+
+api.delete("/breakdowns/:id", ...authWrite("vendors", null, async (req, res) => {
+  res.json(await maintenance.deleteBreakdown(req.params.id));
 }));
 
 api.get("/facilities", ...authRead("facility", async (_req, res) => {

@@ -63,6 +63,14 @@ const CREATE_PATHS = {
   patrolEdit: patchTo("/api/security/patrol"),
   incident: "/api/security/incidents",
   incidentEdit: patchTo("/api/security/incidents"),
+  quotation: "/api/quotations",
+  quotationEdit: patchTo("/api/quotations"),
+  invoice: "/api/invoices",
+  invoiceEdit: patchTo("/api/invoices"),
+  amc: "/api/amc",
+  amcEdit: patchTo("/api/amc"),
+  breakdown: "/api/breakdowns",
+  breakdownEdit: patchTo("/api/breakdowns"),
 };
 
 function patchTo(base) {
@@ -85,6 +93,10 @@ const DELETE_PATHS = {
   handover: (id) => `/api/security/handover/${encodeURIComponent(id)}`,
   patrol: (id) => `/api/security/patrol/${encodeURIComponent(id)}`,
   incident: (id) => `/api/security/incidents/${encodeURIComponent(id)}`,
+  quotation: (id) => `/api/quotations/${encodeURIComponent(id)}`,
+  invoice: (id) => `/api/invoices/${encodeURIComponent(id)}`,
+  amc: (id) => `/api/amc/${encodeURIComponent(id)}`,
+  breakdown: (id) => `/api/breakdowns/${encodeURIComponent(id)}`,
 };
 
 export class ApiError extends Error {
@@ -199,6 +211,14 @@ export function saveAttendance(date, entries) {
   return request("/api/staff-attendance", { method: "PUT", body: JSON.stringify({ date, entries }) });
 }
 
+export function payInvoiceRequest(id) {
+  return request(`/api/invoices/${encodeURIComponent(id)}/pay`, { method: "POST" });
+}
+
+export function amcServicedRequest(id) {
+  return request(`/api/amc/${encodeURIComponent(id)}/serviced`, { method: "POST" });
+}
+
 export function resetPatrolRequest() {
   return request("/api/security/patrol/reset", { method: "POST" });
 }
@@ -249,5 +269,13 @@ export function toastForCreate(kind, created) {
   if (kind === "patrolEdit") return `${created.point} — ${created.mark}.`;
   if (kind === "incident") return `Incident recorded (${created.status}).`;
   if (kind === "incidentEdit") return `Incident updated (${created.status}).`;
+  if (kind === "quotation") return `Quotation added: ${created.work}.`;
+  if (kind === "quotationEdit") return `Quotation updated: ${created.work}.`;
+  if (kind === "invoice") return `Invoice ${created.no} recorded — ${created.amount}.`;
+  if (kind === "invoiceEdit") return `Invoice ${created.no} updated — ${created.amount}.`;
+  if (kind === "amc") return `${created.equip} AMC added — next service ${created.next}.`;
+  if (kind === "amcEdit") return `${created.equip} AMC updated — next service ${created.next}.`;
+  if (kind === "breakdown") return `Breakdown logged: ${created.what}.`;
+  if (kind === "breakdownEdit") return `Breakdown updated: ${created.what}.`;
   return "Saved.";
 }

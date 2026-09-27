@@ -338,6 +338,67 @@ MODALS.incident = {
 };
 withEdit("incident", "Update incident");
 
+const vendorOptions = (none) => (view) => [
+  { value: "", label: none },
+  ...(view.vendors || []).map((v) => ({ value: v.id, label: `${v.name} — ${v.service}` })),
+];
+
+MODALS.quotation = {
+  title: "Add quotation",
+  kicker: "Module 10 · Vendor Management",
+  submit: "Save quotation",
+  fields: [
+    { key: "work", label: "Work", placeholder: "Terrace waterproofing", required: true },
+    { key: "vendors", label: "Vendors quoting", placeholder: "Dr Fixit, SealTech, local contractor" },
+    { key: "range", label: "Quote range", placeholder: "₹2.4–3.1 L" },
+  ],
+};
+withEdit("quotation", "Edit quotation");
+
+MODALS.invoice = {
+  title: "Add vendor invoice",
+  kicker: "Module 10 · Vendor Management",
+  submit: "Save invoice",
+  fields: [
+    { key: "vendor", label: "Vendor", optionsFrom: vendorOptions("Not linked to a vendor") },
+    { key: "no", label: "Invoice no.", placeholder: "INV-2231", required: true },
+    { key: "description", label: "For", placeholder: "Tank cleaning — September", required: true },
+    { key: "amount", label: "Amount (₹)", placeholder: "9000", required: true },
+    { key: "dueOn", label: "Due date", type: "date", default: () => isoDay(addDays(new Date(), 15)) },
+  ],
+};
+withEdit("invoice", "Edit vendor invoice");
+
+MODALS.amc = {
+  title: "Add AMC contract",
+  kicker: "Module 12 · Preventive Maintenance",
+  submit: "Save contract",
+  fields: [
+    { key: "equipment", label: "Equipment", placeholder: "Lifts — Block A & B", required: true },
+    { key: "vendor", label: "Serviced by", optionsFrom: vendorOptions("In-house") },
+    { key: "frequency", label: "Service every", options: ["Monthly", "Quarterly", "Half-yearly", "Yearly"] },
+    { key: "nextOn", label: "Next service due", type: "date", required: true, default: () => isoDay(addDays(new Date(), 30)) },
+  ],
+};
+withEdit("amc", "Edit AMC contract");
+
+MODALS.breakdown = {
+  title: "Log breakdown",
+  kicker: "Module 12 · Preventive Maintenance",
+  submit: "Save breakdown",
+  fields: [
+    {
+      key: "asset",
+      label: "Asset",
+      optionsFrom: (view) => [{ value: "", label: "Not linked to an asset" }, ...(view.assets || []).map((a) => ({ value: a.id, label: `${a.tag} — ${a.name}` }))],
+    },
+    { key: "what", label: "What broke", placeholder: "Lift stuck between floors 2 and 3", required: true },
+    { key: "date", label: "Date", type: "date", required: true, default: () => isoDay(new Date()) },
+    { key: "note", label: "Fix / notes", placeholder: "Door sensor replaced by Otis" },
+  ],
+};
+withEdit("breakdown", "Edit breakdown");
+
 function localStamp(date) {
   return `${isoDay(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
@@ -364,13 +425,21 @@ export const DEFAULT_SETTINGS = {
   billingFrequency: "Quarterly, in advance",
 };
 
-export function emptyForm(kind) {
+export function resolveModal(kind, view) {
+  const cfg = MODALS[kind];
+  if (!cfg) return null;
+  return { ...cfg, fields: cfg.fields.map((f) => (f.optionsFrom ? { ...f, options: f.optionsFrom(view || {}) } : f)) };
+}
+
+export function emptyForm(kind, view) {
   const form = {};
-  MODALS[kind].fields.forEach((f) => {
+  resolveModal(kind, view).fields.forEach((f) => {
     if (f.default !== undefined) {
       form[f.key] = typeof f.default === "function" ? f.default() : f.default;
+    } else if (f.options?.length) {
+      form[f.key] = typeof f.options[0] === "string" ? f.options[0] : f.options[0].value;
     } else {
-      form[f.key] = f.options ? f.options[0] : "";
+      form[f.key] = "";
     }
   });
   return form;

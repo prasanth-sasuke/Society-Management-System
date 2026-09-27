@@ -1,17 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatApiError } from "../api.js";
-import { Card, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, RowActions, SectionTitle, Td, Th, dangerButton, rowButton } from "../components/ui.jsx";
-
-const cardTitle = { font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: 0 };
-
-function CardHead({ title, children }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
-      <h2 style={cardTitle}>{title}</h2>
-      {children ? <RowActions>{children}</RowActions> : null}
-    </div>
-  );
-}
+import { Card, CardHead, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SectionTitle, Td, Th, dangerButton, rowButton } from "../components/ui.jsx";
 
 function SmallButton({ children, onClick, danger }) {
   return <button type="button" style={danger ? dangerButton : rowButton} onClick={onClick}>{children}</button>;

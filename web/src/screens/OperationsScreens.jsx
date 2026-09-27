@@ -1,4 +1,4 @@
-import { Bar, Card, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, SecondaryButton, SectionTitle, Td, Th } from "../components/ui.jsx";
+import { Bar, Card, CardHead, EditDelete, EmptyNote, EmptyTableNote, KpiCard, PageHead, Pill, PrimaryButton, RowActions, SecondaryButton, SectionTitle, Td, Th, dangerButton, rowButton } from "../components/ui.jsx";
 
 export function HelpdeskScreen({ view, onAdd, onEdit, onDelete }) {
   const hasActions = Boolean(onEdit || onDelete);
@@ -56,7 +56,7 @@ export function HelpdeskScreen({ view, onAdd, onEdit, onDelete }) {
   );
 }
 
-export function VendorsScreen({ view, onAdd, onEdit, onDelete }) {
+export function VendorsScreen({ view, onAdd, onEdit, onDelete, extras }) {
   const hasActions = Boolean(onEdit || onDelete);
   const count = view.vendors.length;
   const lead = count
@@ -86,29 +86,47 @@ export function VendorsScreen({ view, onAdd, onEdit, onDelete }) {
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, marginTop: 22 }}>
         <Card>
-          <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Open quotations</h2>
+          <CardHead title="Open quotations">
+            {extras ? <button type="button" style={rowButton} onClick={extras.addQuote}>+ Add quotation</button> : null}
+          </CardHead>
           {view.quotes.length ? view.quotes.map((q) => (
-            <div key={q.work} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
-              <div>
-                <div style={{ font: "400 15px Lato,sans-serif" }}>{q.work}</div>
-                <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{q.vendors}</div>
+            <div key={q.id || q.work} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                <div>
+                  <div style={{ font: "400 15px Lato,sans-serif" }}>{q.work}</div>
+                  <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{q.vendors}</div>
+                </div>
+                <div style={{ font: "700 15px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{q.range}</div>
               </div>
-              <div style={{ font: "700 15px 'Source Serif 4',Georgia,serif", whiteSpace: "nowrap" }}>{q.range}</div>
+              {extras ? <div style={{ marginTop: 10 }}><EditDelete row={q} onEdit={extras.editQuote} onDelete={extras.removeQuote} /></div> : null}
             </div>
           )) : <EmptyNote>No open quotations.</EmptyNote>}
         </Card>
         <Card>
-          <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Invoices awaiting payment</h2>
+          <CardHead title="Invoices awaiting payment">
+            {extras ? <button type="button" style={rowButton} onClick={extras.addInvoice}>+ Add invoice</button> : null}
+          </CardHead>
           {view.invoices.length ? view.invoices.map((i) => (
-            <div key={i.no} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "14px 0", borderTop: "1px solid #efece3" }}>
-              <div>
-                <div style={{ font: "400 15px Lato,sans-serif" }}>{i.no}</div>
-                <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{i.who}</div>
+            <div key={i.id || i.no} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                <div>
+                  <div style={{ font: "400 15px Lato,sans-serif" }}>{i.no}</div>
+                  <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 3 }}>{i.who}</div>
+                </div>
+                <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                  <div style={{ font: "700 15px 'Source Serif 4',Georgia,serif" }}>{i.amount}</div>
+                  <div style={{ font: "400 13px Lato,sans-serif", color: i.tone, marginTop: 3 }}>{i.due}</div>
+                </div>
               </div>
-              <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                <div style={{ font: "700 15px 'Source Serif 4',Georgia,serif" }}>{i.amount}</div>
-                <div style={{ font: "400 13px Lato,sans-serif", color: i.tone, marginTop: 3 }}>{i.due}</div>
-              </div>
+              {extras ? (
+                <div style={{ marginTop: 10 }}>
+                  <RowActions>
+                    {extras.payInvoice ? <button type="button" style={rowButton} onClick={() => extras.payInvoice(i)}>Mark paid</button> : null}
+                    <button type="button" style={rowButton} onClick={() => extras.editInvoice(i)}>Edit</button>
+                    <button type="button" style={dangerButton} onClick={() => extras.removeInvoice(i)}>Delete</button>
+                  </RowActions>
+                </div>
+              ) : null}
             </div>
           )) : <EmptyNote>No invoices awaiting payment.</EmptyNote>}
         </Card>
@@ -148,47 +166,65 @@ export function AssetsScreen({ view, onAdd, onEdit, onDelete }) {
   );
 }
 
-export function PpmScreen({ view }) {
+export function PpmScreen({ view, actions }) {
   return (
     <>
-      <PageHead tag="Module 12 · Preventive Maintenance" title="AMC & service schedule" lead="Reminders fire 15 days before a service is due. Every visit and breakdown is logged against the asset's history." />
+      <PageHead
+        tag="Module 12 · Preventive Maintenance"
+        title="AMC & service schedule"
+        lead="Services, vendor renewals and invoice due dates within the next 30 days show up as reminders. Log every breakdown against its asset."
+        action={actions ? <PrimaryButton onClick={actions.addAmc}>+ Add AMC</PrimaryButton> : null}
+      />
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 22, marginTop: 30, alignItems: "start" }}>
         <Card padding="26px 30px">
           <SectionTitle style={{ marginBottom: 20 }}>AMC contracts</SectionTitle>
           <table>
-            <thead><tr><Th>Equipment</Th><Th>Vendor</Th><Th>Frequency</Th><Th>Next due</Th><Th>Status</Th></tr></thead>
+            <thead><tr><Th>Equipment</Th><Th>Vendor</Th><Th>Frequency</Th><Th>Next due</Th><Th>Status</Th>{actions ? <Th /> : null}</tr></thead>
             <tbody>
-              {view.amc.map((a) => (
+              {view.amc.length ? view.amc.map((a) => (
                 <tr key={a.id || a.equip}>
                   <Td>{a.equip}</Td>
                   <Td muted>{a.vendor}</Td>
                   <Td muted>{a.freq}</Td>
-                  <Td>{a.next}</Td>
+                  <Td nowrap>{a.next}</Td>
                   <Td><Pill bg={a.bg} fg={a.fg}>{a.status}</Pill></Td>
+                  {actions ? (
+                    <Td>
+                      <RowActions>
+                        <button type="button" style={rowButton} onClick={() => actions.serviced(a)}>Serviced</button>
+                        <button type="button" style={rowButton} onClick={() => actions.editAmc(a)}>Edit</button>
+                        <button type="button" style={dangerButton} onClick={() => actions.removeAmc(a)}>Delete</button>
+                      </RowActions>
+                    </Td>
+                  ) : null}
                 </tr>
-              ))}
+              )) : <EmptyTableNote colSpan={actions ? 6 : 5}>No AMC contracts yet.</EmptyTableNote>}
             </tbody>
           </table>
         </Card>
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <Card>
-            <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Reminders — next 30 days</h2>
-            {view.reminders.map((r) => (
-              <div key={r.what} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "13px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
+            <CardHead title="Reminders — next 30 days" />
+            {view.reminders.length ? view.reminders.map((r) => (
+              <div key={`${r.what}-${r.date}`} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "13px 0", borderTop: "1px solid #efece3", font: "400 15px Lato,sans-serif" }}>
                 <span>{r.what}</span><span style={{ color: r.tone, whiteSpace: "nowrap", fontSize: 14 }}>{r.when}</span>
               </div>
-            ))}
+            )) : <EmptyNote>Nothing due in the next 30 days.</EmptyNote>}
           </Card>
           <Card>
-            <h2 style={{ font: "700 20px/1 'Source Serif 4',Georgia,serif", margin: "0 0 14px" }}>Breakdown history — Lift A</h2>
-            {view.breakdowns.map((b) => (
-              <div key={b.what} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", font: "400 15px Lato,sans-serif" }}>
-                  <span>{b.what}</span><span style={{ color: "#8a8a80", fontSize: 14, whiteSpace: "nowrap" }}>{b.when}</span>
+            <CardHead title="Breakdown history">
+              {actions ? <button type="button" style={rowButton} onClick={actions.addBreakdown}>+ Log breakdown</button> : null}
+            </CardHead>
+            {view.breakdowns.length ? view.breakdowns.map((b) => (
+              <div key={b.id || b.what} style={{ padding: "14px 0", borderTop: "1px solid #efece3" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, font: "400 15px Lato,sans-serif" }}>
+                  <span>{b.what}</span><span style={{ color: "#8a8a80", fontSize: 14, whiteSpace: "nowrap" }}>{b.whenLabel}</span>
                 </div>
-                <div style={{ font: "400 14px Lato,sans-serif", color: "#5f5f57", marginTop: 5 }}>{b.note}</div>
+                {b.asset ? <div style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80", marginTop: 4 }}>{b.asset}</div> : null}
+                {b.note ? <div style={{ font: "400 14px Lato,sans-serif", color: "#5f5f57", marginTop: 5 }}>{b.note}</div> : null}
+                {actions ? <div style={{ marginTop: 10 }}><EditDelete row={b} onEdit={actions.editBreakdown} onDelete={actions.removeBreakdown} /></div> : null}
               </div>
-            ))}
+            )) : <EmptyNote>No breakdowns logged.</EmptyNote>}
           </Card>
         </div>
       </div>

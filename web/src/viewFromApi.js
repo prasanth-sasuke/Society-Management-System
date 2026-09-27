@@ -107,7 +107,7 @@ function followTone(status) {
 
 function amcTone(status) {
   const label = String(status).toLowerCase();
-  if (label.includes("renewal") || label.includes("due this")) return "rust";
+  if (label.includes("overdue") || label.includes("renewal") || label.includes("due this")) return "rust";
   if (label.includes("active")) return "green";
   if (label.includes("schedul")) return "purple";
   return "amber";
@@ -141,7 +141,7 @@ function dueTone(due) {
 
 function reminderTone(when) {
   const label = String(when).toLowerCase();
-  if (label.includes("today")) return "#b0491a";
+  if (label.includes("today") || label.includes("overdue")) return "#b0491a";
   if (label.includes("due") || /\d/.test(label)) return "#8a6414";
   return "#5f5f57";
 }
@@ -396,9 +396,9 @@ export function buildViewFromApi(catalog, permissions = {}) {
       { label: "Needs attention", value: String(assets.filter((row) => row.condition !== "Good").length), note: "Not in good condition", tone: "#b0491a" },
     ],
     assets,
-    amc: (catalog.amc || []).map((row) => ({ ...row, next: formatDay(row.next), ...tone(amcTone(row.status)) })),
+    amc: (catalog.amc || []).map((row) => ({ ...row, ...tone(amcTone(row.status)) })),
     reminders: (catalog.reminders || []).map((row) => ({ ...row, tone: reminderTone(row.when) })),
-    breakdowns: (catalog.breakdowns || []).map((row) => ({ ...row, when: formatDay(row.when) })),
+    breakdowns: catalog.breakdowns || [],
     facilities: (catalog.facilities || []).map((row) => ({ ...row, ...tone(facilityTone(row.state)) })),
     bookings,
     reportKpis: [
