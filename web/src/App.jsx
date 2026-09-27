@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import ModalForm, { Toast } from "./components/Overlay.jsx";
-import { createRecord, fetchCatalog, fetchSession, formatApiError, loginRequest, logoutRequest, toastForCreate } from "./api.js";
+import { approveVoucherRequest, createRecord, fetchCatalog, fetchSession, formatApiError, loginRequest, logoutRequest, toastForCreate } from "./api.js";
 import { CREATE_MODULE, canOpenScreen, canWrite, clearToken, getToken, setToken } from "./auth.js";
 import { DEFAULT_SETTINGS, emptyForm, MODALS } from "./data.js";
 import { buildViewFromApi } from "./viewFromApi.js";
@@ -153,11 +153,59 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
-  function openModal(kind) {
+  function openModal(kind, preset = {}) {
     if (!canWrite(permissions, CREATE_MODULE[kind])) return;
-    setForm(emptyForm(kind));
+    setForm({ ...emptyForm(kind), ...preset });
     setFormError(null);
     setModal(kind);
+  }
+
+  function openPayment(bill) {
+    openModal("payment", {
+      billId: bill.id,
+      billLabel: `${bill.flat} · ${bill.period} · ${bill.remaining} due`,
+      amount: String(bill.remainingAmount ?? ""),
+    });
+  }
+
+  function printReceipt(societyName, receipt) {
+    const win = window.open("", "_blank", "width=640,height=720");
+    if (!win) {
+      setToast("Allow pop-ups for this site to print the receipt.");
+      return;
+    }
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    win.document.write(`<!doctype html><html><head><title>${esc(receipt.receiptNo)}</title>
+<style>body{font:15px/1.6 Georgia,serif;color:#2a2a28;padding:40px;max-width:520px;margin:auto}h1{font-size:22px;margin:0 0 4px}.muted{color:#6f6f68}.row{display:flex;justify-content:space-between;border-top:1px solid #e8e4d9;padding:10px 0}.total{font-weight:700;font-size:18px}</style>
+</head><body>
+<h1>${esc(societyName)}</h1><div class="muted">Maintenance receipt</div><br>
+<div class="row"><span>Receipt no.</span><span>${esc(receipt.receiptNo)}</span></div>
+<div class="row"><span>Date</span><span>${esc(receipt.paidOn)}</span></div>
+<div class="row"><span>Flat</span><span>${esc(receipt.flat)}</span></div>
+<div class="row"><span>Resident</span><span>${esc(receipt.resident)}</span></div>
+<div class="row"><span>Billing period</span><span>${esc(receipt.period)}</span></div>
+<div class="row"><span>Paid via</span><span>${esc(receipt.mode)}</span></div>
+<div class="row total"><span>Amount paid</span><span>${esc(receipt.amount)}</span></div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  async function approveVoucher(voucher) {
+    try {
+      const updated = await approveVoucherRequest(voucher.id);
+      setToast(`${updated.no} approved — ${updated.amount} now counts as spent.`);
+      await load(true);
+    } catch (err) {
+      if (err.status === 401) {
+        clearToken();
+        setSession(null);
+        setAuthState("guest");
+        return;
+      }
+      setToast(formatApiError(err));
+    }
   }
 
   const closeModal = useCallback(() => {
@@ -220,8 +268,21 @@ export default function App() {
     blocks: <BlocksScreen view={view} onAdd={write("property") ? () => openModal("flat") : null} />,
     residents: <ResidentsScreen view={view} onAdd={write("residents") ? () => openModal("resident") : null} />,
     access: <AccessScreen view={view} onAdd={write("users") ? () => openModal("user") : null} />,
-    bills: <BillsScreen view={view} onGenerate={write("billing") ? () => setToast(view.generateToast) : null} onReceipt={write("billing") && view.receiptPreview ? () => setToast(`Receipt for ${view.receiptPreview.flat} is not downloaded yet — PDF export is still a placeholder.`) : null} />,
-    accounts: <AccountsScreen view={view} />,
+    bills: (
+      <BillsScreen
+        view={view}
+        onGenerate={write("billing") ? () => openModal("billGenerate") : null}
+        onPay={write("billing") ? openPayment : null}
+        onReceipt={view.receiptPreview ? () => printReceipt(view.societyName, view.receiptPreview) : null}
+      />
+    ),
+    accounts: (
+      <AccountsScreen
+        view={view}
+        onAdd={write("finance") ? () => openModal("voucher") : null}
+        onApprove={write("finance") ? approveVoucher : null}
+      />
+    ),
     helpdesk: <HelpdeskScreen view={view} onAdd={write("helpdesk") ? () => openModal("ticket") : null} />,
     security: <SecurityScreen view={view} />,
     staff: <StaffScreen view={view} onAttendance={write("staff") ? () => setToast("Attendance saved for 27 Aug — 12 present, 1 leave, 1 absent.") : null} />,

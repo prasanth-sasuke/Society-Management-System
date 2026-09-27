@@ -17,6 +17,7 @@ async function main() {
     prisma.ticketFeedback.deleteMany(),
     prisma.ticketEvent.deleteMany(),
     prisma.ticket.deleteMany(),
+    prisma.payment.deleteMany(),
     prisma.bill.deleteMany(),
     prisma.moveEvent.deleteMany(),
     prisma.resident.deleteMany(),

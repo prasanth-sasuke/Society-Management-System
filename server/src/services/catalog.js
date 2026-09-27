@@ -91,7 +91,7 @@ export async function getDashboard() {
     invoiceCount,
     staffOnPayroll,
     vendors,
-    trendBills,
+    trendPayments,
     trendVouchers,
     unpaidBillRows,
     allVouchers,
@@ -101,7 +101,12 @@ export async function getDashboard() {
     prisma.flat.count({ where: { status: { not: "VACANT" } } }),
     prisma.flat.count({ where: { status: "VACANT" } }),
     prisma.ticket.count({ where: { status: { not: "RESOLVED" } } }),
-    prisma.bill.count({ where: { status: "OVERDUE" } }),
+    prisma.bill.count({
+      where: {
+        status: { not: "PAID" },
+        dueOn: { lt: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) },
+      },
+    }),
     prisma.bill.aggregate({ _sum: { paidAmount: true, totalAmount: true } }),
     prisma.bill.count({ where: { status: "PAID" } }),
     prisma.bill.count({ where: { status: { not: "PAID" } } }),
@@ -127,9 +132,9 @@ export async function getDashboard() {
     prisma.vendorInvoice.count(),
     prisma.staffMember.count({ where: { societyId: society.id } }),
     prisma.vendor.count({ where: { societyId: society.id } }),
-    prisma.bill.findMany({
-      where: { billedOn: { gte: trendStart } },
-      select: { billedOn: true, paidAmount: true },
+    prisma.payment.findMany({
+      where: { paidOn: { gte: trendStart } },
+      select: { paidOn: true, amount: true },
     }),
     prisma.voucher.findMany({
       where: { societyId: society.id, status: "APPROVED", createdAt: { gte: trendStart } },
@@ -163,9 +168,9 @@ export async function getDashboard() {
 
   const incomeByMonth = Object.fromEntries(trendMonths.map((row) => [row.key, 0]));
   const expenseByMonth = { ...incomeByMonth };
-  trendBills.forEach((row) => {
-    const key = monthKey(row.billedOn);
-    if (key in incomeByMonth) incomeByMonth[key] += asNumber(row.paidAmount);
+  trendPayments.forEach((row) => {
+    const key = monthKey(row.paidOn);
+    if (key in incomeByMonth) incomeByMonth[key] += asNumber(row.amount);
   });
   trendVouchers.forEach((row) => {
     const key = monthKey(row.createdAt);
@@ -361,30 +366,61 @@ export async function listMoveEvents() {
   }));
 }
 
+function daysOverdue(row, today) {
+  if (row.status === "PAID") return 0;
+  const days = Math.floor((today.getTime() - row.dueOn.getTime()) / 86400000);
+  return Math.max(days, row.overdueDays || 0, 0);
+}
+
 export async function listBills() {
+  const today = new Date();
   const rows = await prisma.bill.findMany({
-    include: { flat: { include: { block: true } }, resident: true },
-    orderBy: { flat: { code: "asc" } },
+    include: {
+      flat: { include: { block: true } },
+      resident: true,
+      payments: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+    orderBy: [{ billedOn: "desc" }, { flat: { code: "asc" } }],
   });
-  return rows.map((row) => ({
-    id: row.id,
-    flat: row.flat.code,
-    blockCode: row.flat.block?.code,
-    resident: row.resident?.fullName || "—",
-    maint: inr(row.maintenanceAmount),
-    special: Number(row.specialAmount) ? inr(row.specialAmount) : "—",
-    prev: Number(row.previousDue) ? inr(row.previousDue) : "—",
-    penalty: Number(row.penaltyAmount) ? inr(row.penaltyAmount) : "—",
-    total: inr(row.totalAmount),
-    totalAmount: money(row.totalAmount),
-    paidAmount: money(row.paidAmount),
-    status: row.status === "OVERDUE" && row.overdueDays
-      ? `Overdue — ${row.overdueDays} days`
-      : row.status === "PART_PAID"
-        ? `Part paid — ${inr(row.paidAmount)}`
-        : BILL_STATUS[row.status],
-    statusCode: row.status,
-  }));
+  return rows.map((row) => {
+    const overdue = daysOverdue(row, today);
+    const remaining = Math.max(Number(row.totalAmount) - Number(row.paidAmount), 0);
+    const last = row.payments[0];
+    let status = BILL_STATUS[row.status];
+    if (row.status !== "PAID" && overdue > 0) {
+      status = `Overdue — ${overdue} day${overdue === 1 ? "" : "s"}`;
+    } else if (row.status === "PART_PAID") {
+      status = `Part paid — ${inr(row.paidAmount)}`;
+    }
+    return {
+      id: row.id,
+      flat: row.flat.code,
+      blockCode: row.flat.block?.code,
+      period: row.periodLabel,
+      dueOn: row.dueOn.toISOString().slice(0, 10),
+      resident: row.resident?.fullName || "—",
+      maint: inr(row.maintenanceAmount),
+      special: Number(row.specialAmount) ? inr(row.specialAmount) : "—",
+      prev: Number(row.previousDue) ? inr(row.previousDue) : "—",
+      penalty: Number(row.penaltyAmount) ? inr(row.penaltyAmount) : "—",
+      total: inr(row.totalAmount),
+      totalAmount: money(row.totalAmount),
+      paidAmount: money(row.paidAmount),
+      remaining: inr(remaining),
+      remainingAmount: remaining,
+      status,
+      statusCode: row.status,
+      lastPayment: last
+        ? {
+          receiptNo: last.receiptNo,
+          amount: inr(last.amount),
+          mode: last.mode,
+          paidOn: last.paidOn.toISOString().slice(0, 10),
+          at: last.createdAt.toISOString(),
+        }
+        : null,
+    };
+  });
 }
 
 export async function listFinance() {

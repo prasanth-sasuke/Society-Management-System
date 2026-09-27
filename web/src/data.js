@@ -107,7 +107,57 @@ export const MODALS = {
       { key: "role", label: "Role", options: ["Admin", "EC member", "Manager", "Accountant", "Security", "Resident", "Vendor"] },
     ],
   },
+  billGenerate: {
+    title: "Generate bills",
+    kicker: "Module 4 · Maintenance Billing",
+    submit: "Generate bills",
+    fields: [
+      { key: "period", label: "Billing period", placeholder: "Oct 2026", required: true, default: () => monthLabel(new Date()) },
+      { key: "amount", label: "Maintenance per flat (₹)", placeholder: "4200", required: true },
+      { key: "special", label: "Special contribution per flat (₹)", placeholder: "0" },
+      { key: "dueOn", label: "Due date", type: "date", required: true, default: () => isoDay(addDays(new Date(), 15)) },
+      { key: "scope", label: "Bill which flats", options: ["All flats", "Occupied flats only"] },
+    ],
+  },
+  payment: {
+    title: "Record payment",
+    kicker: "Module 4 · Maintenance Billing",
+    submit: "Save payment",
+    fields: [
+      { key: "billLabel", label: "Bill", readOnly: true },
+      { key: "amount", label: "Amount received (₹)", placeholder: "4200", required: true },
+      { key: "mode", label: "Paid via", options: ["UPI", "Cash", "Cheque", "Bank transfer"] },
+      { key: "paidOn", label: "Paid on", type: "date", required: true, default: () => isoDay(new Date()) },
+    ],
+  },
+  voucher: {
+    title: "Add expense voucher",
+    kicker: "Module 5 · Accounting & Finance",
+    submit: "Save voucher",
+    fields: [
+      { key: "head", label: "Account head", placeholder: "Housekeeping", required: true },
+      { key: "party", label: "Paid to", placeholder: "CleanCo Services", required: true },
+      { key: "amount", label: "Amount (₹)", placeholder: "18000", required: true },
+      { key: "state", label: "Approval", options: ["Approved", "EC approval", "Draft"] },
+    ],
+  },
 };
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthLabel(date) {
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function isoDay(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export const DEFAULT_SETTINGS = {
   societyName: "Greenfield Residency",
@@ -118,7 +168,11 @@ export const DEFAULT_SETTINGS = {
 export function emptyForm(kind) {
   const form = {};
   MODALS[kind].fields.forEach((f) => {
-    form[f.key] = f.options ? f.options[0] : "";
+    if (f.default !== undefined) {
+      form[f.key] = typeof f.default === "function" ? f.default() : f.default;
+    } else {
+      form[f.key] = f.options ? f.options[0] : "";
+    }
   });
   return form;
 }

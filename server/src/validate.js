@@ -68,6 +68,40 @@ export const bookingCreateSchema = z.object({
   pay: z.string().trim().min(1),
 });
 
+const amount = z.union([z.string(), z.number()]).transform((value, ctx) => {
+  const n = typeof value === "number" ? value : Number(String(value).replace(/[₹,\s]/g, ""));
+  if (!Number.isFinite(n) || n < 0) {
+    ctx.addIssue({ code: "custom", message: "Enter an amount in rupees, e.g. 4200" });
+    return z.NEVER;
+  }
+  return Math.round(n * 100) / 100;
+});
+
+const positiveAmount = amount.refine((n) => n > 0, { message: "Amount must be more than ₹0" });
+
+const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
+
+export const billGenerateSchema = z.object({
+  period: z.string().trim().min(1).max(40),
+  amount: positiveAmount,
+  special: amount.optional().default(0),
+  dueOn: isoDate,
+  scope: z.string().trim().optional().default("All flats"),
+});
+
+export const paymentCreateSchema = z.object({
+  amount: positiveAmount,
+  mode: z.string().trim().min(1).max(30),
+  paidOn: isoDate,
+});
+
+export const voucherCreateSchema = z.object({
+  head: z.string().trim().min(1).max(80),
+  party: z.string().trim().min(1).max(120),
+  amount: positiveAmount,
+  state: z.string().trim().min(1),
+});
+
 export function validate(schema) {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);

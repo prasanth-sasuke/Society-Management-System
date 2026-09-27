@@ -36,6 +36,9 @@ const CREATE_PATHS = {
   asset: "/api/assets",
   booking: "/api/bookings",
   user: "/api/users",
+  billGenerate: "/api/bills/generate",
+  payment: (body) => `/api/bills/${encodeURIComponent(body.billId)}/payments`,
+  voucher: "/api/vouchers",
 };
 
 export class ApiError extends Error {
@@ -125,9 +128,14 @@ export async function fetchCatalog(permissions) {
 }
 
 export function createRecord(kind, body) {
-  const path = CREATE_PATHS[kind];
-  if (!path) throw new Error(`Unknown create form: ${kind}`);
+  const target = CREATE_PATHS[kind];
+  if (!target) throw new Error(`Unknown create form: ${kind}`);
+  const path = typeof target === "function" ? target(body) : target;
   return request(path, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function approveVoucherRequest(id) {
+  return request(`/api/vouchers/${encodeURIComponent(id)}/approve`, { method: "POST" });
 }
 
 export function toastForCreate(kind, created) {
@@ -138,5 +146,15 @@ export function toastForCreate(kind, created) {
   if (kind === "asset") return `Asset ${created.tag} tagged.`;
   if (kind === "booking") return `${created.facility} booked for ${created.flat} on ${created.date}.`;
   if (kind === "user") return `Login created for ${created.email}.`;
+  if (kind === "billGenerate") {
+    const skipped = created.skipped ? ` (${created.skipped} already billed, skipped)` : "";
+    return `${created.period}: ${created.created} bills raised — ${created.total}${skipped}.`;
+  }
+  if (kind === "payment") {
+    return created.fullyPaid
+      ? `${created.receiptNo} — ${created.flat} paid ${created.amount}. Bill cleared.`
+      : `${created.receiptNo} — ${created.flat} paid ${created.amount}. ${created.remaining} still due.`;
+  }
+  if (kind === "voucher") return `${created.no} saved — ${created.amount} (${created.state}).`;
   return "Saved.";
 }

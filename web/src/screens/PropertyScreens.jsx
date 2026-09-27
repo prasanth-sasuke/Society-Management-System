@@ -298,7 +298,18 @@ export function AccessScreen({ view, onAdd }) {
   );
 }
 
-export function BillsScreen({ view, onGenerate, onReceipt }) {
+const rowButton = {
+  border: "1px solid #cfe0d6",
+  background: "#fff",
+  cursor: "pointer",
+  borderRadius: 7,
+  padding: "6px 12px",
+  font: "700 13px Lato,sans-serif",
+  color: "#1e6b52",
+  whiteSpace: "nowrap",
+};
+
+export function BillsScreen({ view, onGenerate, onPay, onReceipt }) {
   return (
     <>
       <PageHead tag="Module 4 · Maintenance Billing" title={view.billTitle} lead={view.billIntro} action={onGenerate ? <PrimaryButton onClick={onGenerate}>{view.billCta}</PrimaryButton> : null} />
@@ -310,7 +321,7 @@ export function BillsScreen({ view, onGenerate, onReceipt }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 38, marginTop: 18, font: "400 15px Lato,sans-serif", color: "#5f5f57" }}>
           <div>Billing frequency: <strong style={{ color: "#2a2a28" }}>{view.freqLabel}</strong></div>
           <div>Bill raised on: <strong style={{ color: "#2a2a28" }}>{view.raisedOn}</strong></div>
-          <div>Due date: <strong style={{ color: "#2a2a28" }}>15th of the billing month</strong></div>
+          <div>Due date: <strong style={{ color: "#2a2a28" }}>set when you generate bills</strong></div>
           <div>Penalty: <strong style={{ color: "#2a2a28" }}>₹{view.penalty}/day</strong> after due date</div>
         </div>
       </div>
@@ -322,40 +333,46 @@ export function BillsScreen({ view, onGenerate, onReceipt }) {
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
           <SectionTitle>{view.billRegisterTitle}</SectionTitle>
-          <span style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80" }}>Penalty = ₹{view.penalty}/day from 16 Jul until paid</span>
+          <span style={{ font: "400 13px Lato,sans-serif", color: "#8a8a80" }}>Unpaid bills turn overdue the day after their due date</span>
         </div>
         <table>
           <thead>
             <tr>
-              <Th>Flat</Th><Th>Resident</Th><Th>{view.maintColLabel}</Th><Th>Special contribution</Th><Th>Prev. balance</Th><Th>Penalty</Th><Th>Total due</Th><Th>Status</Th>
+              <Th>Flat</Th><Th>Period</Th><Th>Resident</Th><Th>{view.maintColLabel}</Th><Th>Special contribution</Th><Th>Total</Th><Th>Still due</Th><Th>Status</Th>{onPay ? <Th /> : null}
             </tr>
           </thead>
           <tbody>
             {view.bills.length ? view.bills.map((b) => (
               <tr key={b.id || b.flat}>
                 <Td mono>{b.flat}</Td>
+                <Td muted>{b.period}</Td>
                 <Td>{b.resident}</Td>
                 <Td mono>{b.maint}</Td>
                 <Td mono muted>{b.special}</Td>
-                <Td mono muted>{b.prev}</Td>
-                <Td mono muted>{b.penalty}</Td>
-                <Td mono style={{ fontWeight: 500 }}>{b.total}</Td>
+                <Td mono>{b.total}</Td>
+                <Td mono style={{ fontWeight: 500 }}>{b.remaining}</Td>
                 <Td><Pill bg={b.bg} fg={b.fg}>{b.status}</Pill></Td>
+                {onPay ? (
+                  <Td>
+                    {b.statusCode !== "PAID" ? <button type="button" style={rowButton} onClick={() => onPay(b)}>Record payment</button> : null}
+                  </Td>
+                ) : null}
               </tr>
-            )) : <EmptyTableNote colSpan={8}>No bills in this cycle yet.</EmptyTableNote>}
+            )) : <EmptyTableNote colSpan={onPay ? 9 : 8}>No bills yet. Use “Generate bills” to raise them for your flats.</EmptyTableNote>}
           </tbody>
         </table>
       </Card>
       <Card padding="26px 30px" style={{ marginTop: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <SectionTitle>{view.receiptPreview ? view.receiptPreview.title : "Receipt preview"}</SectionTitle>
-          {onReceipt && view.receiptPreview ? <button type="button" onClick={onReceipt} style={{ border: "1px solid #e0dccf", background: "#fff", cursor: "pointer", borderRadius: 8, padding: "10px 18px", font: "700 14px Lato,sans-serif", color: "#2a2a28" }}>Download PDF</button> : null}
+          <SectionTitle>{view.receiptPreview ? view.receiptPreview.title : "Latest receipt"}</SectionTitle>
+          {onReceipt && view.receiptPreview ? <button type="button" onClick={onReceipt} style={{ border: "1px solid #e0dccf", background: "#fff", cursor: "pointer", borderRadius: 8, padding: "10px 18px", font: "700 14px Lato,sans-serif", color: "#2a2a28" }}>Print / save PDF</button> : null}
         </div>
         {view.receiptPreview ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 9, font: "400 15px/1.5 Lato,sans-serif", color: "#5f5f57" }}>
+            <div>Receipt no: {view.receiptPreview.receiptNo} · Date: {view.receiptPreview.paidOn}</div>
             <div>Flat {view.receiptPreview.flat} — {view.receiptPreview.resident}</div>
-            <div>{view.receiptPreview.line}</div>
-            <div style={{ fontWeight: 700, color: "#2a2a28" }}>Amount paid: {view.receiptPreview.total}</div>
+            <div>Maintenance for {view.receiptPreview.period}</div>
+            <div style={{ fontWeight: 700, color: "#2a2a28" }}>Amount paid: {view.receiptPreview.amount} — via {view.receiptPreview.mode}</div>
           </div>
         ) : (
           <EmptyNote>No paid bills yet — a receipt will appear here after the first collection.</EmptyNote>
@@ -365,10 +382,15 @@ export function BillsScreen({ view, onGenerate, onReceipt }) {
   );
 }
 
-export function AccountsScreen({ view }) {
+export function AccountsScreen({ view, onAdd, onApprove }) {
   return (
     <>
-      <PageHead tag="Module 5 · Accounting & Finance" title="Accounts, vouchers & budget" lead="Financial year 2026–27, as of 27 Aug 2026. Books close monthly; the last audit was signed off for FY 2025–26." />
+      <PageHead
+        tag="Module 5 · Accounting & Finance"
+        title="Accounts, vouchers & budget"
+        lead="Record society expenses as vouchers. Only approved vouchers count toward money spent."
+        action={onAdd ? <PrimaryButton onClick={onAdd}>+ Add voucher</PrimaryButton> : null}
+      />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22, marginTop: 30 }}>
         {view.finKpis.map((k) => (
           <KpiCard key={k.label} compact {...k} />
@@ -376,10 +398,10 @@ export function AccountsScreen({ view }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 22, marginTop: 22, alignItems: "start" }}>
         <Card padding="26px 30px">
-          <SectionTitle style={{ marginBottom: 20 }}>Voucher register — August</SectionTitle>
+          <SectionTitle style={{ marginBottom: 20 }}>Voucher register</SectionTitle>
           <table>
             <thead>
-              <tr><Th>Voucher</Th><Th>Head</Th><Th>Paid to</Th><Th>Amount</Th><Th>Approval</Th></tr>
+              <tr><Th>Voucher</Th><Th>Head</Th><Th>Paid to</Th><Th>Amount</Th><Th>Approval</Th>{onApprove ? <Th /> : null}</tr>
             </thead>
             <tbody>
               {view.vouchers.length ? view.vouchers.map((v) => (
@@ -389,8 +411,13 @@ export function AccountsScreen({ view }) {
                   <Td muted>{v.party}</Td>
                   <Td mono style={{ fontWeight: 500 }}>{v.amount}</Td>
                   <Td><Pill bg={v.bg} fg={v.fg}>{v.state}</Pill></Td>
+                  {onApprove ? (
+                    <Td>
+                      {v.state !== "Approved" ? <button type="button" style={rowButton} onClick={() => onApprove(v)}>Approve</button> : null}
+                    </Td>
+                  ) : null}
                 </tr>
-              )) : <EmptyTableNote colSpan={5}>No vouchers recorded yet.</EmptyTableNote>}
+              )) : <EmptyTableNote colSpan={onApprove ? 6 : 5}>No vouchers recorded yet.</EmptyTableNote>}
             </tbody>
           </table>
         </Card>

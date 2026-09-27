@@ -52,6 +52,9 @@ export const CREATE_MODULE = {
   asset: "vendors",
   booking: "facility",
   user: "users",
+  billGenerate: "billing",
+  payment: "billing",
+  voucher: "finance",
 };
 
 export function getToken() {

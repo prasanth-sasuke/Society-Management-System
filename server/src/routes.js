@@ -4,17 +4,21 @@ import { asyncHandler } from "./http.js";
 import { requireAuth, requirePermission } from "./auth/middleware.js";
 import {
   assetCreateSchema,
+  billGenerateSchema,
   bookingCreateSchema,
   flatCreateSchema,
   loginSchema,
+  paymentCreateSchema,
   residentCreateSchema,
   ticketCreateSchema,
   validate,
   vendorCreateSchema,
   userCreateSchema,
+  voucherCreateSchema,
 } from "./validate.js";
 import * as catalog from "./services/catalog.js";
 import * as auth from "./services/auth.js";
+import * as billing from "./services/billing.js";
 
 export const api = Router();
 
@@ -89,8 +93,24 @@ api.get("/bills", ...authRead("billing", async (_req, res) => {
   res.json(await catalog.listBills());
 }));
 
+api.post("/bills/generate", requireAuth, requirePermission("billing", "write"), validate(billGenerateSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await billing.generateBills(req.body));
+}));
+
+api.post("/bills/:id/payments", requireAuth, requirePermission("billing", "write"), validate(paymentCreateSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await billing.recordPayment(req.params.id, req.body));
+}));
+
 api.get("/finance", ...authRead("finance", async (_req, res) => {
   res.json(await catalog.listFinance());
+}));
+
+api.post("/vouchers", requireAuth, requirePermission("finance", "write"), validate(voucherCreateSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await billing.createVoucher(req.body));
+}));
+
+api.post("/vouchers/:id/approve", requireAuth, requirePermission("finance", "write"), asyncHandler(async (req, res) => {
+  res.json(await billing.approveVoucher(req.params.id));
 }));
 
 api.get("/tickets", ...authRead("helpdesk", async (_req, res) => {

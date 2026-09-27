@@ -159,6 +159,10 @@ function priorityColor(priority) {
   return "#8a8a80";
 }
 
+function plural(count, word, many = `${word}s`) {
+  return `${count} ${count === 1 ? word : many}`;
+}
+
 function rupees(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}`;
 }
@@ -237,7 +241,6 @@ export function buildViewFromApi(catalog, permissions = {}) {
   const money = dashboard.money || {};
   const blocks = catalog.blocks || [];
   const blockNames = blocks.map((block) => block.code).filter(Boolean).join(", ");
-  const billedLabel = /quarter/i.test(settings.billingFrequency || "") ? "Billed this quarter" : "Billed this month";
   const presentDays = staffRows.reduce((sum, row) => sum + Number(row.presentDays || 0), 0);
   const workingDays = staffRows.reduce((sum, row) => sum + Number(row.workingDays || 0), 0);
   const salaryTotal = money.salary ?? staffRows.reduce((sum, row) => sum + Number(row.salaryAmount || 0), 0);
@@ -248,19 +251,19 @@ export function buildViewFromApi(catalog, permissions = {}) {
       {
         label: "Money collected",
         value: rupees(money.collected),
-        note: money.paidBills ? `${money.paidBills} bills paid` : "No collections yet",
+        note: money.paidBills ? `${plural(money.paidBills, "bill")} fully paid` : "No collections yet",
         tone: "#1e6b52",
       },
       {
         label: "Money still due",
         value: rupees(money.due),
-        note: money.unpaidFlats ? `${money.unpaidFlats} flats haven't paid yet` : "No dues yet",
+        note: money.unpaidFlats ? `${plural(money.unpaidFlats, "flat")} yet to pay` : "No dues yet",
         tone: "#b0491a",
       },
       {
         label: "Money spent",
         value: rupees(money.spent),
-        note: money.vouchers ? `${money.vouchers} approved vouchers` : "No expenses yet",
+        note: money.vouchers ? `${plural(money.vouchers, "approved voucher")}` : "No expenses yet",
         tone: "#8a8a80",
       },
     );
@@ -269,7 +272,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
     homeKpis.push({
       label: "Flats occupied",
       value: occupiedNote,
-      note: occupancy.total ? `${occupancy.vacant} flats are empty` : "No flats in the register yet",
+      note: occupancy.total ? `${plural(occupancy.vacant, "flat")} empty` : "No flats in the register yet",
       tone: "#8a8a80",
     });
   }
@@ -290,13 +293,13 @@ export function buildViewFromApi(catalog, permissions = {}) {
     homeKpis,
     chart: chartBars(dashboard.trend),
     billKpis: [
-      { label: billedLabel, value: rupees(money.billed), note: bills.length ? `${bills.length} bills in register` : "No bills generated yet" },
-      { label: "Collected so far", value: rupees(money.collected), note: money.paidBills ? `${money.paidBills} paid` : "No collections yet" },
-      { label: "Still pending", value: rupees(money.due), note: money.unpaidBills ? `${money.unpaidBills} unpaid` : "No dues yet" },
+      { label: "Total billed", value: rupees(money.billed), note: bills.length ? `${plural(bills.length, "bill")} in register` : "No bills generated yet" },
+      { label: "Collected so far", value: rupees(money.collected), note: money.paidBills ? `${plural(money.paidBills, "bill")} fully paid` : "No collections yet" },
+      { label: "Still pending", value: rupees(money.due), note: money.unpaidBills ? `${plural(money.unpaidBills, "bill")} unpaid` : "No dues yet" },
     ],
     finKpis: [
       { label: "Income YTD", value: rupees(money.collected), note: money.paidBills ? "From maintenance collections" : "No income recorded yet", tone: "#8a8a80" },
-      { label: "Expenses YTD", value: rupees(money.spent), note: money.vouchers ? `${money.vouchers} approved vouchers` : "No expenses recorded yet", tone: "#8a8a80" },
+      { label: "Expenses YTD", value: rupees(money.spent), note: money.vouchers ? plural(money.vouchers, "approved voucher") : "No expenses recorded yet", tone: "#8a8a80" },
       { label: "Corpus fund", value: rupees(0), note: "Not set up yet", tone: "#8a8a80" },
       { label: "Cash + bank", value: rupees(money.cash), note: money.banks ? `Across ${money.banks} account${money.banks === 1 ? "" : "s"}` : "No bank accounts yet", tone: "#8a8a80" },
     ],
@@ -322,16 +325,23 @@ export function buildViewFromApi(catalog, permissions = {}) {
     residents,
     moveLog: (catalog.moveEvents || []).map((row) => ({ text: row.text, date: formatDay(row.date) })),
     bills,
-    generateToast: "Bill generation is not connected to the database yet.",
+    billCta: "Generate bills",
+    billRegisterTitle: bills.length ? `Bill register — latest period: ${bills[0].period}` : "Bill register",
     receiptPreview: (() => {
-      const paid = bills.find((row) => row.statusCode === "PAID" || String(row.status).startsWith("Paid"));
+      const paid = bills
+        .filter((row) => row.lastPayment)
+        .sort((a, b) => String(b.lastPayment.at).localeCompare(String(a.lastPayment.at)))[0];
       if (!paid) return null;
+      const p = paid.lastPayment;
       return {
-        title: `Receipt preview — ${paid.flat}`,
+        title: `Latest receipt — ${paid.flat}`,
+        receiptNo: p.receiptNo,
+        paidOn: formatDay(p.paidOn),
         flat: paid.flat,
         resident: paid.resident,
-        total: paid.total,
-        line: `Maintenance bill ................ ${paid.total}`,
+        period: paid.period,
+        mode: p.mode,
+        amount: p.amount,
       };
     })(),
     vouchers: (finance.vouchers || []).map((row) => ({ ...row, ...tone(voucherTone(row.state)) })),
@@ -402,7 +412,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
       {
         label: "Outstanding dues",
         value: rupees(money.due),
-        note: money.unpaidFlats ? `${money.unpaidFlats} flats` : "No dues yet",
+        note: money.unpaidFlats ? plural(money.unpaidFlats, "flat") : "No dues yet",
         tone: money.due ? "#b0491a" : "#8a8a80",
       },
       {
@@ -414,7 +424,7 @@ export function buildViewFromApi(catalog, permissions = {}) {
       {
         label: "Vendor payments due",
         value: rupees(money.vendorDue),
-        note: money.invoices ? `${money.invoices} invoices` : "No vendor invoices yet",
+        note: money.invoices ? plural(money.invoices, "invoice") : "No vendor invoices yet",
         tone: money.vendorDue ? "#8a6414" : "#8a8a80",
       },
     ],

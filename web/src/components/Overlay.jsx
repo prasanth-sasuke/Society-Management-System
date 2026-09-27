@@ -72,14 +72,15 @@ export default function ModalForm({ cfg, form, error, submitting, onChange, onCl
                 </select>
               ) : (
                 <input
-                  type={f.key === "password" ? "password" : "text"}
+                  type={f.type || (f.key === "password" ? "password" : "text")}
                   required={Boolean(f.required)}
+                  readOnly={Boolean(f.readOnly)}
                   value={form[f.key] ?? ""}
                   onChange={(e) => onChange(f.key, e.target.value)}
                   placeholder={f.placeholder}
                   style={{
                     border: "1px solid #e0dccf",
-                    background: "#fdfcf8",
+                    background: f.readOnly ? "#f3f1ea" : "#fdfcf8",
                     borderRadius: 8,
                     padding: "11px 14px",
                     font: "400 15px Lato,sans-serif",
