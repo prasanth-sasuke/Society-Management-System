@@ -27,7 +27,7 @@ deployment, error handling, logging, backups and documentation.
 | Backups | `npm run backup:cloud` — verified dump of Neon, automatic PostgreSQL-version matching via Docker, keeps the newest 14 |
 | Verification | `verify:api` and `verify:cloud` rewritten for an empty (no demo data) database |
 | Config | Removed an unused demo password from `web/.env.development` and `web/.env.example` |
-| Mobile | Android APK limited to ARM processors + R8 shrinking (smaller download); iOS configuration added; iOS time picker fixed |
+| Mobile | Android APK limited to ARM processors + R8 shrinking: 95 MB → 44.7 MB (measured on the EAS preview build); iOS configuration added; iOS time picker fixed |
 | Docs | README and `docs/` (local setup, deployment, environment, troubleshooting, this review) |
 
 ## Verified
