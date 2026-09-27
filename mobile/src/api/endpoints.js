@@ -5,6 +5,9 @@ export const endpoints = {
   me: '/api/auth/me',
   logout: '/api/auth/logout',
   dashboard: '/api/dashboard',
+  society: '/api/society',
   bills: '/api/bills',
+  billPayments: (id) => `/api/bills/${encodeURIComponent(id)}/payments`,
+  billWaivePenalty: (id) => `/api/bills/${encodeURIComponent(id)}/waive-penalty`,
   tickets: '/api/tickets',
 };

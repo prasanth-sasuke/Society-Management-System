@@ -9,6 +9,11 @@ export function rupees(value) {
   return `${sign}₹${rest},${last3}`;
 }
 
+export function isoDay(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function plural(count, word) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }

@@ -33,5 +33,5 @@ export function useApi(path) {
     setRefreshing(false);
   }, [run]);
 
-  return { ...state, refreshing, refresh };
+  return { ...state, refreshing, refresh, reload: run };
 }
